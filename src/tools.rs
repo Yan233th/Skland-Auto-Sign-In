@@ -1,4 +1,14 @@
+use reqwest::blocking::Client;
+use serde::{Deserialize, Serialize};
+use serde_json::json;
 use std::{env, fs};
+
+#[derive(Deserialize, Serialize)]
+pub struct ResponseData {
+    pub status: i32,
+    pub message: String,
+    pub data: serde_json::Value,
+}
 
 pub fn get_tokens() -> Vec<String> {
     let tokens: Vec<String> = match env::var("USER_TOKENS") {
@@ -17,4 +27,18 @@ pub fn get_tokens() -> Vec<String> {
         println!("Get user tokens successfully!")
     }
     return tokens;
+}
+
+pub fn get_credential(token: String) {
+    let client = Client::new();
+    let authorization_code_response: ResponseData = client
+        .post("https://as.hypergryph.com/user/oauth2/v2/grant")
+        .json(&json!({ "appCode": "4ca99fa6b56cc2ba", "token": token, "type": 0 }))
+        .send()
+        .unwrap()
+        .json()
+        .unwrap();
+    if authorization_code_response.status != 0 {
+        panic!("Failed to get cred: {}", authorization_code_response.message)
+    }
 }
