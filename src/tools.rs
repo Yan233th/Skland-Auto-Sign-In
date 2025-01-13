@@ -1,9 +1,12 @@
-use reqwest::{blocking::Client, header::{HeaderMap, HeaderValue}};
+use reqwest::{
+    blocking::Client,
+    header::{HeaderMap, HeaderValue},
+};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::{env, fs};
 
-mod verification;
+use crate::verification;
 
 #[derive(Deserialize, Serialize)]
 pub struct ResponseData {
@@ -31,21 +34,20 @@ pub fn get_tokens() -> Vec<String> {
     return tokens;
 }
 
-pub fn generate_header() -> HeaderMap {
-    let mut header = HeaderMap::new();
-    header.insert("User-Agent", HeaderValue::from_static("Skland/1.0.1 (com.hypergryph.skland; build:100001014; Android 31; ) Okhttp/4.11.0"));
-    header.insert("Accept-Encoding", HeaderValue::from_static("gzip"));
-    header.insert("Connection", HeaderValue::from_static("close"));
-    header.insert("dId", HeaderValue::from_str(get_did()).unwrap());
-    return header;
+pub fn generate_headers() -> HeaderMap {
+    let mut headers = HeaderMap::new();
+    headers.insert("User-Agent", HeaderValue::from_static("Skland/1.0.1 (com.hypergryph.skland; build:100001014; Android 31; ) Okhttp/4.11.0"));
+    headers.insert("Accept-Encoding", HeaderValue::from_static("gzip"));
+    headers.insert("Connection", HeaderValue::from_static("close"));
+    headers.insert("dId", HeaderValue::from_str(&verification::get_did()).unwrap());
+    return headers;
 }
 
-pub fn get_credential(token: String) {
+pub fn get_credential(token: String, headers: &HeaderMap) {
     let client = Client::new();
-    // let test = client.post("https://as.hypergryph.com/user/oauth2/v2/grant").json(&json!({ "appCode": "4ca99fa6b56cc2ba", "token": token, "type": 0 })).send().unwrap();
-    // let authorization_code_response: ResponseData = test.json().unwrap();
     let authorization_code_response: ResponseData = client
         .post("https://as.hypergryph.com/user/oauth2/v2/grant")
+        .headers(headers.clone())
         .json(&json!({ "appCode": "4ca99fa6b56cc2ba", "token": token, "type": 0 }))
         .send()
         .unwrap()
