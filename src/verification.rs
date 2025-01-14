@@ -1,8 +1,11 @@
-use std::{time::{SystemTime, UNIX_EPOCH}, collections::HashMap};
-use reqwest::blocking::Client;
 use base64::{engine::general_purpose, Engine};
-use md5::{Md5, Digest};
+use md5::{Digest, Md5};
+use reqwest::blocking::Client;
 use serde_json::{json, Value};
+use std::{
+    collections::HashMap,
+    time::{SystemTime, UNIX_EPOCH},
+};
 use uuid::Uuid;
 
 const DES_RULE: &str = r#"{
@@ -82,7 +85,7 @@ pub fn get_d_id() -> String {
     let tn = generate_tn(&des_target);
     let mut hasher = Md5::new();
     hasher.update(tn.as_bytes());
-    des_target.insert("tn".to_string(), hasher.result_str());
+    des_target.insert("tn".to_string(), hex::encode(hasher.finalize()));
     let gzip_result = gzip_compress(&des_encrypt(&des_target));
     let aes_result = aes_encrypt(&gzip_result, primary_id.as_bytes());
     let client = Client::new();
@@ -105,4 +108,91 @@ pub fn get_d_id() -> String {
     }
     let device_id = resp["detail"].get("deviceId").and_then(Value::as_str).expect("deviceId is null");
     return "B".to_string() + device_id;
+}
+
+fn des_encrypt(data: &HashMap<String, String>) -> HashMap<String, String> {
+    let des_rule_map: HashMap<String, Value> = serde_json::from_str(DES_RULE).expect("Failed to parse DES_RULE");
+    let mut result = HashMap::new();
+    for (key, value) in data.iter() {
+        if let Some(rule) = des_rule_map.get(key) {
+            if let Some(obfuscated_name) = rule.get("obfuscated_name").and_then(Value::as_str) {
+                if rule.get("is_encrypt").and_then(Value::as_i64) == Some(1) {
+                    if let Some(des_key_str) = rule.get("key").and_then(Value::as_str) {
+                        let des_key = Key::from_slice(des_key_str.as_bytes()).unwrap();
+                        let mut data_bytes = value.as_bytes().to_vec();
+                        data_bytes.extend(std::iter::repeat(0u8).take(8));
+                        let data_block: Block = data_bytes.as_slice().try_into().unwrap();
+                        let cipher = TripleDes::new(des_key);
+                        let mut encrypted_block = Block::default();
+                        cipher.encrypt_block(&mut encrypted_block, &data_block);
+                        result.insert(obfuscated_name.to_string(), general_purpose::STANDARD.encode(encrypted_block.as_slice()));
+                    }
+                } else {
+                    result.insert(obfuscated_name.to_string(), value.to_string());
+                }
+            }
+        } else {
+            result.insert(key.to_string(), value.to_string());
+        }
+    }
+    result
+}
+
+fn aes_encrypt(data: &[u8], key: &[u8]) -> String {
+    let iv = b"0102030405060708";
+    let aes_key = aes::Key::from_slice(key).expect("aes key error");
+    let cipher = Cbc::<Aes128, Pkcs7>::new(aes_key, iv.into());
+    let mut buffer = data.to_vec();
+    buffer.push(0);
+    let padding_len = 16 - (buffer.len() % 16);
+    buffer.extend(std::iter::repeat(0u8).take(padding_len));
+    let result = cipher.encrypt(buffer.as_slice()).expect("aes encrypt error");
+    hex::encode(result)
+}
+
+fn gzip_compress(data: &HashMap<String, String>) -> Vec<u8> {
+    let json_string = serde_json::to_string(data).expect("json stringify error");
+    let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::new(2));
+    encoder.write_all(json_string.as_bytes()).expect("gzip compress error");
+    let compressed_bytes = encoder.finish().expect("gzip compress error");
+    general_purpose::STANDARD.encode(compressed_bytes).as_bytes().to_vec()
+}
+
+fn generate_tn(data: &HashMap<String, String>) -> String {
+    let mut sorted_keys: Vec<_> = data.keys().collect();
+    sorted_keys.sort();
+
+    let mut result_list = Vec::new();
+
+    for key in sorted_keys {
+        let value = data.get(key).unwrap();
+        if let Ok(num) = value.parse::<f64>() {
+            result_list.push(format!("{}", num * 10000.0))
+        } else {
+            result_list.push(value.to_string())
+        }
+    }
+    result_list.join("")
+}
+
+fn generate_smid() -> String {
+    let now = SystemTime::now();
+    let since_epoch = now.duration_since(UNIX_EPOCH).expect("Time went backwards");
+    let t = time::OffsetDateTime::from(now);
+    let time_string = format!("{}{:0>2}{:0>2}{:0>2}{:0>2}{:0>2}", t.year(), t.month() as u8, t.day(), t.hour(), t.minute(), t.second());
+    let uuid_str = Uuid::new_v4().to_string();
+    let mut hasher = Md5::new();
+    hasher.update(uuid_str.as_bytes());
+    let v = format!("{}{}{}", time_string, hex::encode(hasher.finalize()), "00");
+    let mut hasher = Md5::new();
+    hasher.update(("smsk_web_".to_owned() + &v).as_bytes());
+    let smsk_web = &hex::encode(hasher.finalize())[0..14];
+    format!("{}{}{}", v, smsk_web, "0")
+}
+
+fn rsa_encrypt(data: &[u8], public_key: &str) -> Vec<u8> {
+    let public_key_decoded = general_purpose::STANDARD.decode(public_key).expect("base64 decode error");
+    let pk = PKey::public_key_from_der(&public_key_decoded).expect("rsa pubkey parse error");
+    let mut rsa = Rsa::from_public_key(pk).expect("rsa from pubkey error");
+    rsa.public_encrypt(data, openssl::rsa::Padding::PKCS1_PADDING).expect("rsa encrypt error")
 }
