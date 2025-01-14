@@ -4,16 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-aes = "0.8"
 base64 = "0.22"
-block-modes = "0.8"
-block-padding = "0.3"
 chrono = "0.4"
-cipher = "0.4"
 des = "0.8.1"
 flate2 = "1.0"
-generic-array = "1.2.0"
-hex = "0.4"
 md-5 = "0.10"
 openssl = "0.10"
 reqwest = { version = "0.12", features = ["blocking", "json"] }

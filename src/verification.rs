@@ -3,7 +3,6 @@ use des::cipher::generic_array::GenericArray;
 use des::cipher::{BlockEncrypt, KeyInit};
 use des::Des;
 use flate2::{write::GzEncoder, Compression};
-// use generic_array::{typenum::U8, GenericArray};
 use md5::{Digest, Md5};
 use openssl::{
     rsa::Rsa,
@@ -87,9 +86,7 @@ pub fn get_d_id() -> String {
         .decode("MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCmxMNr7n8ZeT0tE1R9j/mPixoinPkeM+k4VGIn/s0k7N5rJAfnZ0eMER+QhwFvshzo0LNmeUkpR8uIlU/GEVr8mN28sKmwd2gpygqj0ePnBmOW4v0ZVwbSYK+izkhVFk2V/doLoMbWy6b+UnA8mkjvg0iYWRByfRsK2gdl7llqCwIDAQAB")
         .unwrap();
     let rsa = Rsa::public_key_from_der(&public_key).unwrap();
-    // let pkey = PKey::from_rsa(rsa).unwrap();
     let mut ep = vec![0; rsa.size() as usize];
-    // Use rsa.public_encrypt directly
     let ep_len = rsa.public_encrypt(uid.as_bytes(), &mut ep, openssl::rsa::Padding::PKCS1).unwrap();
     ep.truncate(ep_len);
     let ep_base64 = general_purpose::STANDARD.encode(&ep);
@@ -132,7 +129,7 @@ pub fn get_d_id() -> String {
         println!("{}", response);
         panic!("D_ID calculation failed!");
     }
-    format!("B{}", response["detail"]["deviceId"].as_str().unwrap())
+    return format!("B{}", response["detail"]["deviceId"].as_str().unwrap());
 }
 
 fn des_encrypt(key: &[u8], data: &[u8]) -> Vec<u8> {
@@ -140,17 +137,12 @@ fn des_encrypt(key: &[u8], data: &[u8]) -> Vec<u8> {
     let mut buffer = data.to_vec();
     let padding_len = if data_len % 8 == 0 { 0 } else { 8 - data_len % 8 };
     buffer.extend(vec![padding_len as u8; padding_len]);
-
     let cipher = Des::new_from_slice(key).expect("Invalid DES key");
-
     for i in (0..buffer.len()).step_by(8) {
-        // Convert the slice to a GenericArray
         let mut block = GenericArray::from_mut_slice(&mut buffer[i..i + 8]);
-        // Correctly pass a &mut GenericArray<u8, U8>
         cipher.encrypt_block(&mut block);
     }
-
-    buffer
+    return buffer;
 }
 
 fn apply_des_rules(input: serde_json::Map<String, Value>, rules: &HashMap<String, HashMap<String, Value>>) -> serde_json::Map<String, Value> {
@@ -201,7 +193,7 @@ fn aes_encrypt(key: &[u8], data: &[u8]) -> Vec<u8> {
     let cipher = Cipher::aes_128_cbc();
     let iv = b"0102030405060708";
     let mut crypter = Crypter::new(cipher, Mode::Encrypt, key, Some(iv)).unwrap();
-    crypter.pad(true); // Enable padding
+    crypter.pad(true);
     let mut ciphertext = vec![0; data.len() + cipher.block_size()];
     let count = crypter.update(data, &mut ciphertext).unwrap();
     let final_count = crypter.finalize(&mut ciphertext[count..]).unwrap();
@@ -223,5 +215,5 @@ fn get_smid() -> String {
     let mut hasher = Md5::new();
     hasher.update(format!("smsk_web_{}", v).as_bytes());
     let smsk_web = hasher.finalize();
-    format!("{}{:x}{}", v, smsk_web, 0)
+    return format!("{}{:x}{}", v, smsk_web, 0);
 }
