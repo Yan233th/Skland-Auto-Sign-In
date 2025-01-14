@@ -109,15 +109,3 @@ pub fn get_d_id() -> String {
     let device_id = resp["detail"].get("deviceId").and_then(Value::as_str).expect("deviceId is null");
     return "B".to_string() + device_id;
 }
-
-fn des_encrypt(data: &HashMap<String, String>) -> HashMap<String, String> {}
-
-fn aes_encrypt(data: &[u8], key: &[u8]) -> String {}
-
-fn gzip_compress(data: &HashMap<String, String>) -> Vec<u8> {}
-
-fn generate_tn(data: &HashMap<String, String>) -> String {}
-
-fn generate_smid() -> String {}
-
-fn rsa_encrypt(data: &[u8], public_key: &str) -> Vec<u8> {}
