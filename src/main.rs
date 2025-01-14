@@ -14,8 +14,9 @@ fn main() {
         if token.is_empty() {
             continue;
         }
-        let authorization_code = tools::get_authorization_code(&client, &headers, &token);
-        println!("Got code: {}", authorization_code);
-        get_credential(&client, &headers, &token);
+        let authorization = tools::get_authorization(&client, &headers, &token);
+        println!("Got authorization: {}", authorization);
+        let credential = get_credential(&client, &headers, &authorization);
+        println!("Got credential: {}", credential);
     }
 }

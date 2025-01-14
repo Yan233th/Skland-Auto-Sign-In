@@ -5,7 +5,7 @@ use reqwest::{
 use serde_json::json;
 use std::{env, fs};
 
-use crate::verification;
+// use crate::verification;
 
 pub fn get_tokens() -> Vec<String> {
     let tokens: Vec<String> = match env::var("USER_TOKENS") {
@@ -35,10 +35,23 @@ pub fn generate_headers() -> HeaderMap {
     return headers;
 }
 
-pub fn get_credential(client: &Client, headers: &HeaderMap, token: &str) {}
+pub fn get_credential(client: &Client, headers: &HeaderMap, authorization: &str) -> String {
+    let credential_response: serde_json::Value = client
+        .post("https://zonai.skland.com/web/v1/user/auth/generate_cred_by_code")
+        .headers(headers.clone())
+        .json(&json!({"code":authorization,"kind":1}))
+        .send()
+        .unwrap()
+        .json()
+        .unwrap();
+    if credential_response["code"] != 0 {
+        panic!("Failed to get credential: {}", credential_response["message"]);
+    }
+    return credential_response["data"].to_string();
+}
 
-pub fn get_authorization_code(client: &Client, headers: &HeaderMap, token: &str) -> String {
-    let authorization_code_response: serde_json::Value = client
+pub fn get_authorization(client: &Client, headers: &HeaderMap, token: &str) -> String {
+    let authorization_response: serde_json::Value = client
         .post("https://as.hypergryph.com/user/oauth2/v2/grant")
         .headers(headers.clone())
         .json(&json!({ "appCode": "4ca99fa6b56cc2ba", "token": token, "type": 0 }))
@@ -46,8 +59,8 @@ pub fn get_authorization_code(client: &Client, headers: &HeaderMap, token: &str)
         .unwrap()
         .json()
         .unwrap();
-    if authorization_code_response["status"] != 0 {
-        panic!("Failed to get credential: {}", authorization_code_response["message"])
+    if authorization_response["status"] != 0 {
+        panic!("Failed to get authorization: {}", authorization_response["message"]);
     }
-    return authorization_code_response["data"]["code"].as_str().unwrap().to_string();
+    return authorization_response["data"]["code"].to_string();
 }
