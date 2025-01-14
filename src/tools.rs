@@ -2,7 +2,7 @@ use reqwest::{
     blocking::Client,
     header::{HeaderMap, HeaderValue},
 };
-use serde_json::json;
+use serde_json::{json, Value};
 use std::{env, fs};
 
 use crate::verification;
@@ -36,7 +36,7 @@ pub fn generate_headers() -> HeaderMap {
 }
 
 pub fn get_credential(client: &Client, headers: &HeaderMap, authorization: &str) -> String {
-    let credential_response: serde_json::Value = client
+    let credential_response: Value = client
         .post("https://zonai.skland.com/web/v1/user/auth/generate_cred_by_code")
         .headers(headers.clone())
         .json(&json!({"code":authorization,"kind":1}))
@@ -51,7 +51,7 @@ pub fn get_credential(client: &Client, headers: &HeaderMap, authorization: &str)
 }
 
 pub fn get_authorization(client: &Client, headers: &HeaderMap, token: &str) -> String {
-    let authorization_response: serde_json::Value = client
+    let authorization_response: Value = client
         .post("https://as.hypergryph.com/user/oauth2/v2/grant")
         .headers(headers.clone())
         .json(&json!({ "appCode": "4ca99fa6b56cc2ba", "token": token, "type": 0 }))
