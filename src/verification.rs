@@ -1,7 +1,14 @@
 use base64::{engine::general_purpose, Engine};
+use flate2::{write::GzEncoder, Compression};
 use md5::{Digest, Md5};
+use openssl::{
+    nid::Nid,
+    rsa::Rsa,
+    symm::{Cipher, Crypter, Mode},
+};
 use reqwest::blocking::Client;
 use serde_json::{json, Value};
+use std::io::prelude::Write;
 use std::{
     collections::HashMap,
     time::{SystemTime, UNIX_EPOCH},
@@ -53,7 +60,7 @@ const BROWSER_ENV: &str = r#"{
     "plugins": "MicrosoftEdgePDFPluginPortableDocumentFormatinternal-pdf-viewer1,MicrosoftEdgePDFViewermhjfbmdgcfjbbpaeojofohoefgiehjai1",
     "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36 Edg/129.0.0.0",
     "canvas": "259ffe69",
-    "timezone": -480,
+    "timezone": "-480",
     "platform": "Win32",
     "url": "https://www.skland.com/",
     "referer": "",
@@ -63,49 +70,201 @@ const BROWSER_ENV: &str = r#"{
 }"#;
 
 pub fn get_d_id() -> String {
-    let uid = Uuid::new_v4().to_string().as_bytes().to_vec();
-    let mut hasher = Md5::new();
-    hasher.update(uid.as_slice());
-    let primary_id = &hex::encode(hasher.finalize())[0..16];
-    let encrypted_ep = rsa_encrypt(
-        uid.as_slice(),
-        "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCmxMNr7n8ZeT0tE1R9j/mPixoinPkeM+k4VGIn/s0k7N5rJAfnZ0eMER+QhwFvshzo0LNmeUkpR8uIlU/GEVr8mN28sKmwd2gpygqj0ePnBmOW4v0ZVwbSYK+izkhVFk2V/doLoMbWy6b+UnA8mkjvg0iYWRByfRsK2gdl7llqCwIDAQAB",
-    );
-    let base64_ep = general_purpose::STANDARD.encode(encrypted_ep);
-    let browser_env_map: HashMap<String, String> = serde_json::from_str(BROWSER_ENV).expect("Failed to parse BROWSER_ENV");
-    let mut browser_data = browser_env_map.clone();
-    let current_time = SystemTime::now().duration_since(UNIX_EPOCH).expect("Time went backwards").as_millis();
-    browser_data.insert("vpw".to_string(), Uuid::new_v4().to_string());
-    browser_data.insert("svm".to_string(), current_time.to_string());
-    browser_data.insert("trees".to_string(), Uuid::new_v4().to_string());
-    browser_data.insert("pmf".to_string(), current_time.to_string());
-    let mut des_target: HashMap<String, String> = serde_json::from_str(DES_TARGET).expect("Failed to parse DES_TARGET");
-    des_target.extend(browser_data);
-    des_target.insert("smid".to_string(), generate_smid());
-    let tn = generate_tn(&des_target);
-    let mut hasher = Md5::new();
-    hasher.update(tn.as_bytes());
-    des_target.insert("tn".to_string(), hex::encode(hasher.finalize()));
-    let gzip_result = gzip_compress(&des_encrypt(&des_target));
-    let aes_result = aes_encrypt(&gzip_result, primary_id.as_bytes());
+    let browser_env: HashMap<String, String> = serde_json::from_str(BROWSER_ENV).unwrap();
+    let des_rules: HashMap<String, HashMap<String, Value>> = serde_json::from_str(DES_RULE).unwrap();
+    let uid = Uuid::new_v4().to_string();
+    // Correctly hash and get the first 8 bytes
+    let pri_id_hash = Md5::digest(uid.as_bytes());
+    let pri_id = &pri_id_hash[0..8];
+    // Convert pri_id to a hex string
+    let pri_id_hex = pri_id.iter().map(|b| format!("{:02x}", b)).collect::<String>();
+
+    // RSA encrypt
+    let public_key = general_purpose::STANDARD
+        .decode("MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCmxMNr7n8ZeT0tE1R9j/mPixoinPkeM+k4VGIn/s0k7N5rJAfnZ0eMER+QhwFvshzo0LNmeUkpR8uIlU/GEVr8mN28sKmwd2gpygqj0ePnBmOW4v0ZVwbSYK+izkhVFk2V/doLoMbWy6b+UnA8mkjvg0iYWRByfRsK2gdl7llqCwIDAQAB")
+        .unwrap();
+    let rsa = Rsa::public_key_from_der(&public_key).unwrap();
+    // let pkey = PKey::from_rsa(rsa).unwrap();
+    let mut ep = vec![0; rsa.size() as usize];
+    // Use rsa.public_encrypt directly
+    let ep_len = rsa.public_encrypt(uid.as_bytes(), &mut ep, openssl::rsa::Padding::PKCS1).unwrap();
+    ep.truncate(ep_len);
+    let ep_base64 = general_purpose::STANDARD.encode(&ep);
+    let now = SystemTime::now();
+    let since_the_epoch = now.duration_since(UNIX_EPOCH).expect("Time went backwards");
+    let in_ms = since_the_epoch.as_millis();
+
+    let mut browser = browser_env.clone();
+    browser.insert("vpw".to_string(), Uuid::new_v4().to_string());
+    browser.insert("svm".to_string(), in_ms.to_string());
+    browser.insert("trees".to_string(), Uuid::new_v4().to_string());
+    browser.insert("pmf".to_string(), in_ms.to_string());
+    let mut des_target: serde_json::Map<String, Value> = serde_json::from_str(DES_TARGET).unwrap();
+    des_target.insert("smid".to_string(), json!(get_smid()));
+    for (key, value) in browser.iter() {
+        des_target.insert(key.clone(), json!(value));
+    }
+    des_target.insert("tn".to_string(), json!(format!("{:x}", Md5::digest(get_tn(&des_target).as_bytes()))));
+    let des_result = apply_des_rules(des_target, &des_rules);
+    let compressed = gzip_compress(&serde_json::to_string(&des_result).unwrap());
+    let encrypted = aes_encrypt(pri_id_hex.as_bytes(), &compressed);
+
     let client = Client::new();
-    let response = client
+    let response: Value = client
         .post("https://fp-it.portal101.cn/deviceprofile/v4")
         .json(&json!({
             "appId": "default",
             "compress": 2,
-            "data": aes_result,
+            "data": general_purpose::STANDARD.encode(encrypted),
             "encode": 5,
-            "ep": base64_ep,
+            "ep": ep_base64,
             "organization": "UWXspnCCJN4sfYlNfqps",
             "os": "web"
         }))
         .send()
-        .expect("request error");
-    let resp: Value = response.json().expect("response json error");
-    if resp["code"] != 1100 {
-        panic!("did 计算失败，请联系作者");
+        .unwrap()
+        .json()
+        .unwrap();
+    if response["code"] != 1100 {
+        panic!("did计算失败, 请联系作者");
     }
-    let device_id = resp["detail"].get("deviceId").and_then(Value::as_str).expect("deviceId is null");
-    return "B".to_string() + device_id;
+    format!("B{}", response["detail"]["deviceId"].as_str().unwrap())
 }
+
+fn des_encrypt(key: &[u8], data: &[u8]) -> Vec<u8> {
+    let cipher = Cipher::from_nid(Nid::DES_ECB).expect("DES cipher not available");
+    let mut crypter = Crypter::new(cipher, Mode::Encrypt, key, None).expect("Failed to create Crypter");
+    let mut ciphertext = vec![0; data.len() + cipher.block_size()];
+    let count = crypter.update(data, &mut ciphertext).expect("Failed to encrypt");
+    // 补足8字节的倍数
+    let padding_len = 8 - (count % 8);
+    let padding = vec![0; padding_len];
+    let pad_count = crypter.update(&padding, &mut ciphertext[count..]).expect("Failed to encrypt");
+    let final_count = crypter.finalize(&mut ciphertext[count + pad_count..]).expect("Failed to finalize");
+    ciphertext.truncate(count + pad_count + final_count);
+    return ciphertext;
+}
+
+fn apply_des_rules(input: serde_json::Map<String, Value>, rules: &HashMap<String, HashMap<String, Value>>) -> serde_json::Map<String, Value> {
+    let mut result = serde_json::Map::new();
+    for (key, value) in input.iter() {
+        if let Some(rule) = rules.get(key) {
+            if let Some(is_encrypt) = rule.get("is_encrypt").and_then(|v| v.as_i64()) {
+                if is_encrypt == 1 {
+                    let key = rule["key"].as_str().expect("Missing key in DES_RULE").as_bytes();
+                    let data = value.as_str().unwrap_or("").as_bytes();
+                    let encrypted = des_encrypt(key, data);
+                    result.insert(rule["obfuscated_name"].as_str().unwrap().to_string(), Value::String(general_purpose::STANDARD.encode(&encrypted)));
+                } else {
+                    result.insert(rule["obfuscated_name"].as_str().unwrap().to_string(), value.clone());
+                }
+            }
+        } else {
+            result.insert(key.clone(), value.clone());
+        }
+    }
+    return result;
+}
+
+fn gzip_compress(input: &str) -> Vec<u8> {
+    let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+    encoder.write_all(input.as_bytes()).expect("Failed to write data");
+    return encoder.finish().expect("Failed to finish compression");
+}
+
+fn get_tn(data: &serde_json::Map<String, Value>) -> String {
+    let mut sorted_keys: Vec<_> = data.keys().collect();
+    sorted_keys.sort();
+    let mut result = String::new();
+    for key in sorted_keys {
+        let value = &data[key];
+        if value.is_i64() || value.is_f64() {
+            result.push_str(&(value.as_f64().unwrap_or(0.0) * 10000.0).to_string());
+        } else if value.is_object() {
+            result.push_str(&get_tn(value.as_object().unwrap()));
+        } else {
+            result.push_str(value.as_str().unwrap_or(""));
+        }
+    }
+    return result;
+}
+
+fn aes_encrypt(key: &[u8], data: &[u8]) -> Vec<u8> {
+    let cipher = Cipher::aes_128_cbc();
+    let iv = b"0102030405060708";
+    let mut crypter = Crypter::new(cipher, Mode::Encrypt, key, Some(iv)).unwrap();
+    let mut ciphertext = vec![0; data.len() + cipher.block_size()];
+    let count = crypter.update(data, &mut ciphertext).unwrap();
+    // 补足16字节的倍数
+    let padding_len = 16 - (count % 16);
+    let padding = vec![0; padding_len];
+    let pad_count = crypter.update(&padding, &mut ciphertext[count..]).unwrap();
+    let final_count = crypter.finalize(&mut ciphertext[count + pad_count..]).unwrap();
+    ciphertext.truncate(count + pad_count + final_count);
+    return ciphertext;
+}
+
+fn get_smid() -> String {
+    let now = SystemTime::now();
+    let since_the_epoch = now.duration_since(UNIX_EPOCH).expect("Time went backwards");
+    let in_ms = since_the_epoch.as_millis();
+
+    let t = format!("{}", in_ms / 1000);
+    let uid = Uuid::new_v4().to_string();
+    let mut hasher = Md5::new();
+    hasher.update(uid.as_bytes());
+    let result = hasher.finalize();
+    let v = format!("{}{}{:x}00", &t[0..4], &t[4..8], result);
+    let mut hasher = Md5::new();
+    hasher.update(format!("smsk_web_{}", v).as_bytes());
+    let smsk_web = hasher.finalize();
+    format!("{}{:x}{}", v, smsk_web, 0)
+}
+
+// pub fn get_d_id() -> String {
+//     let uid = Uuid::new_v4().to_string().as_bytes().to_vec();
+//     let mut hasher = Md5::new();
+//     hasher.update(uid.as_slice());
+//     let primary_id = &hex::encode(hasher.finalize())[0..16];
+//     let encrypted_ep = rsa_encrypt(
+//         uid.as_slice(),
+//         "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCmxMNr7n8ZeT0tE1R9j/mPixoinPkeM+k4VGIn/s0k7N5rJAfnZ0eMER+QhwFvshzo0LNmeUkpR8uIlU/GEVr8mN28sKmwd2gpygqj0ePnBmOW4v0ZVwbSYK+izkhVFk2V/doLoMbWy6b+UnA8mkjvg0iYWRByfRsK2gdl7llqCwIDAQAB",
+//     );
+//     let base64_ep = general_purpose::STANDARD.encode(encrypted_ep);
+//     let browser_env_map: HashMap<String, String> = serde_json::from_str(BROWSER_ENV).expect("Failed to parse BROWSER_ENV");
+//     let mut browser_data = browser_env_map.clone();
+//     let current_time = SystemTime::now().duration_since(UNIX_EPOCH).expect("Time went backwards").as_millis();
+//     browser_data.insert("vpw".to_string(), Uuid::new_v4().to_string());
+//     browser_data.insert("svm".to_string(), current_time.to_string());
+//     browser_data.insert("trees".to_string(), Uuid::new_v4().to_string());
+//     browser_data.insert("pmf".to_string(), current_time.to_string());
+//     let mut des_target: HashMap<String, String> = serde_json::from_str(DES_TARGET).expect("Failed to parse DES_TARGET");
+//     des_target.extend(browser_data);
+//     des_target.insert("smid".to_string(), generate_smid());
+//     let tn = generate_tn(&des_target);
+//     let mut hasher = Md5::new();
+//     hasher.update(tn.as_bytes());
+//     des_target.insert("tn".to_string(), hex::encode(hasher.finalize()));
+//     let gzip_result = gzip_compress(&des_encrypt(&des_target));
+//     let aes_result = aes_encrypt(&gzip_result, primary_id.as_bytes());
+//     let client = Client::new();
+//     let response = client
+//         .post("https://fp-it.portal101.cn/deviceprofile/v4")
+//         .json(&json!({
+//             "appId": "default",
+//             "compress": 2,
+//             "data": aes_result,
+//             "encode": 5,
+//             "ep": base64_ep,
+//             "organization": "UWXspnCCJN4sfYlNfqps",
+//             "os": "web"
+//         }))
+//         .send()
+//         .expect("request error");
+//     let resp: Value = response.json().expect("response json error");
+//     if resp["code"] != 1100 {
+//         panic!("did 计算失败，请联系作者");
+//     }
+//     let device_id = resp["detail"].get("deviceId").and_then(Value::as_str).expect("deviceId is null");
+//     return "B".to_string() + device_id;
+// }
