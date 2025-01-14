@@ -31,7 +31,7 @@ pub fn generate_headers() -> HeaderMap {
     headers.insert("User-Agent", HeaderValue::from_static("Skland/1.0.1 (com.hypergryph.skland; build:100001014; Android 31; ) Okhttp/4.11.0"));
     headers.insert("Accept-Encoding", HeaderValue::from_static("gzip"));
     headers.insert("Connection", HeaderValue::from_static("close"));
-    headers.insert("dId", HeaderValue::from_str(&verification::get_did()).unwrap());
+    headers.insert("dId", HeaderValue::from_str(&verification::get_d_id()).unwrap());
     return headers;
 }
 
