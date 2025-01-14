@@ -1,4 +1,5 @@
 use base64::{engine::general_purpose, Engine};
+use chrono::{Datelike, Local, Timelike};
 use md5::{Digest, Md5};
 use reqwest::blocking::Client;
 use serde_json::{json, Value};
@@ -178,8 +179,17 @@ fn generate_tn(data: &HashMap<String, String>) -> String {
 fn generate_smid() -> String {
     let now = SystemTime::now();
     let since_epoch = now.duration_since(UNIX_EPOCH).expect("Time went backwards");
-    let t = time::OffsetDateTime::from(now);
-    let time_string = format!("{}{:0>2}{:0>2}{:0>2}{:0>2}{:0>2}", t.year(), t.month() as u8, t.day(), t.hour(), t.minute(), t.second());
+    let timestamp = since_epoch.as_secs();
+    let local_time = Local::now();
+    let time_string = format!(
+        "{}{:0>2}{:0>2}{:0>2}{:0>2}{:0>2}",
+        local_time.year(),
+        local_time.month() as u32,
+        local_time.day() as u32,
+        local_time.hour() as u32,
+        local_time.minute() as u32,
+        local_time.second() as u32
+    );
     let uuid_str = Uuid::new_v4().to_string();
     let mut hasher = Md5::new();
     hasher.update(uuid_str.as_bytes());
