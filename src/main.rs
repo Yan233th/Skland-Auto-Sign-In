@@ -1,6 +1,5 @@
 use chrono::Utc;
 use reqwest::blocking::Client;
-use tools::get_credential;
 
 mod tools;
 mod verification;
@@ -16,7 +15,7 @@ fn main() {
         }
         let authorization = tools::get_authorization(&client, &headers, &token);
         println!("Got authorization: {}", authorization);
-        let credential = get_credential(&client, &headers, &authorization);
+        let credential = tools::get_credential(&client, &headers, &authorization);
         println!("Got credential: {}", credential);
     }
 }
