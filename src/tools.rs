@@ -26,12 +26,12 @@ pub fn get_tokens() -> Vec<String> {
     return tokens;
 }
 
-pub fn generate_headers() -> HeaderMap {
+pub fn generate_headers(client: &Client) -> HeaderMap {
     let mut headers = HeaderMap::new();
     headers.insert("User-Agent", HeaderValue::from_static("Skland/1.0.1 (com.hypergryph.skland; build:100001014; Android 31; ) Okhttp/4.11.0"));
     headers.insert("Accept-Encoding", HeaderValue::from_static("gzip"));
     headers.insert("Connection", HeaderValue::from_static("close"));
-    headers.insert("dId", HeaderValue::from_str(&verification::get_d_id()).unwrap());
+    headers.insert("dId", HeaderValue::from_str(&verification::get_d_id(client)).unwrap());
     return headers;
 }
 

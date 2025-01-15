@@ -75,7 +75,7 @@ const BROWSER_ENV: &str = r#"{
     "status": "0011"
 }"#;
 
-pub fn get_d_id() -> String {
+pub fn get_d_id(client: &Client) -> String {
     let browser_env: Map<String, Value> = serde_json::from_str(BROWSER_ENV).unwrap();
     let des_rules: HashMap<String, HashMap<String, Value>> = serde_json::from_str(DES_RULE).unwrap();
     let uid = Uuid::new_v4().to_string();
@@ -111,8 +111,6 @@ pub fn get_d_id() -> String {
     let compressed_data = gzip_compress(&apply_des_rules(&des_target, &des_rules));
     let encrypted = aes_encrypt(&compressed_data, pri_id_hex.as_bytes());
     // println!("Final: {}", encrypted);
-
-    let client = Client::new();
     let response: Value = client
         .post("https://fp-it.portal101.cn/deviceprofile/v4")
         .json(&json!({
