@@ -8,6 +8,7 @@ fn main() {
     println!("Current UTC time: {}", Utc::now().format("%Y-%m-%d %H:%M:%S"));
     let tokens = tools::get_tokens();
     let headers = tools::generate_headers();
+    println!("{:?}", headers);
     let client = Client::new();
     for token in tokens {
         if token.is_empty() {
@@ -18,4 +19,5 @@ fn main() {
         let credential = tools::get_credential(&client, &headers, &authorization);
         println!("Got credential: {}", credential);
     }
+    // verification::get_d_id();
 }

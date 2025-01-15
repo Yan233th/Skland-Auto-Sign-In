@@ -1,18 +1,22 @@
 use base64::{engine::general_purpose, Engine};
-use des::cipher::generic_array::GenericArray;
-use des::cipher::{BlockEncrypt, KeyInit};
-use des::Des;
+use chrono::{DateTime, Local};
+use cipher::{
+    generic_array::GenericArray,
+    {BlockEncrypt, KeyInit},
+};
+use des::TdesEde3;
 use flate2::{write::GzEncoder, Compression};
+use hex;
 use md5::{Digest, Md5};
 use openssl::{
     rsa::Rsa,
     symm::{Cipher, Crypter, Mode},
 };
 use reqwest::blocking::Client;
-use serde_json::{json, Value};
-use std::io::prelude::Write;
+use serde_json::{json, Map, Value};
 use std::{
     collections::HashMap,
+    io::prelude::Write,
     time::{SystemTime, UNIX_EPOCH},
 };
 use uuid::Uuid;
@@ -46,7 +50,7 @@ const DES_RULE: &str = r#"{
 }"#;
 
 const DES_TARGET: &str = r#"{
-    "protocol": "102",
+    "protocol": 102,
     "organization": "UWXspnCCJN4sfYlNfqps",
     "appId": "default",
     "os": "web",
@@ -55,14 +59,14 @@ const DES_TARGET: &str = r#"{
     "box": "",
     "rtype": "all",
     "subVersion": "1.0.0",
-    "time": "0"
+    "time": 0
 }"#;
 
 const BROWSER_ENV: &str = r#"{
     "plugins": "MicrosoftEdgePDFPluginPortableDocumentFormatinternal-pdf-viewer1,MicrosoftEdgePDFViewermhjfbmdgcfjbbpaeojofohoefgiehjai1",
     "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36 Edg/129.0.0.0",
     "canvas": "259ffe69",
-    "timezone": "-480",
+    "timezone": -480,
     "platform": "Win32",
     "url": "https://www.skland.com/",
     "referer": "",
@@ -72,9 +76,11 @@ const BROWSER_ENV: &str = r#"{
 }"#;
 
 pub fn get_d_id() -> String {
-    let browser_env: HashMap<String, String> = serde_json::from_str(BROWSER_ENV).unwrap();
+    let browser_env: Map<String, Value> = serde_json::from_str(BROWSER_ENV).unwrap();
     let des_rules: HashMap<String, HashMap<String, Value>> = serde_json::from_str(DES_RULE).unwrap();
-    let uid = Uuid::new_v4().to_string();
+    // let uid = Uuid::new_v4().to_string();
+    // println!("{}", Uuid::new_v4().to_string());
+    let uid = "25b1c0db-6eb2-4576-9c11-f67e3dd151c2".to_string();
     // Correctly hash and get the first 8 bytes
     let pri_id_hash = Md5::digest(uid.as_bytes());
     let pri_id = &pri_id_hash[0..8];
@@ -89,25 +95,35 @@ pub fn get_d_id() -> String {
     let mut ep = vec![0; rsa.size() as usize];
     let ep_len = rsa.public_encrypt(uid.as_bytes(), &mut ep, openssl::rsa::Padding::PKCS1).unwrap();
     ep.truncate(ep_len);
-    let ep_base64 = general_purpose::STANDARD.encode(&ep);
+    // let ep_base64 = general_purpose::STANDARD.encode(&ep);
+    let ep_base64 = "SC/1EeAuDOOSeCKL3pbCNb0iyi03PCH3s3e3T7JTKRVm9tU1PmQ+4M1YDybFZCr3iIr3s4IUDexvx+ZhwE91KTbfATRB//N/g0CLHF5ntYf9GrHfoE/Qdfzm0Wad68++9sCxbqqlldsJETbBwr2GVYssDzbhsEQAB98quKGjJm4=".to_string();
+    // println!("ep_base64: {}", ep_base64);
     let now = SystemTime::now();
     let since_the_epoch = now.duration_since(UNIX_EPOCH).expect("Time went backwards");
     let in_ms = since_the_epoch.as_millis();
-
+    // println!("current_time: {}", in_ms.to_string());
     let mut browser = browser_env.clone();
-    browser.insert("vpw".to_string(), Uuid::new_v4().to_string());
-    browser.insert("svm".to_string(), in_ms.to_string());
-    browser.insert("trees".to_string(), Uuid::new_v4().to_string());
-    browser.insert("pmf".to_string(), in_ms.to_string());
-    let mut des_target: serde_json::Map<String, Value> = serde_json::from_str(DES_TARGET).unwrap();
+    browser.insert("vpw".to_string(), json!(Uuid::new_v4()));
+    // browser.insert("vpw".to_string(), json!("09a30d6e-13c4-4398-90d0-3885b7571e8b"));
+    browser.insert("svm".to_string(), json!(in_ms));
+    browser.insert("trees".to_string(), json!(Uuid::new_v4()));
+    // browser.insert("trees".to_string(), json!("e8156811-499b-4fe1-8869-4bddb9997ff7"));
+    browser.insert("pmf".to_string(), json!(in_ms));
+    let mut des_target: Map<String, Value> = serde_json::from_str(DES_TARGET).unwrap();
     des_target.insert("smid".to_string(), json!(get_smid()));
     for (key, value) in browser.iter() {
         des_target.insert(key.clone(), json!(value));
     }
     des_target.insert("tn".to_string(), json!(format!("{:x}", Md5::digest(get_tn(&des_target).as_bytes()))));
-    let des_result = apply_des_rules(des_target, &des_rules);
-    let compressed = gzip_compress(&serde_json::to_string(&des_result).unwrap());
-    let encrypted = aes_encrypt(pri_id_hex.as_bytes(), &compressed);
+    // des_target.clear();
+    // des_target = generate_data();
+    // println!("{:?}\n", des_target);
+    // println!("{:?}\n", apply_des_rules(&des_target, &des_rules));
+    // println!("{:?}\n", String::from_utf8_lossy(pri_id_hex.as_bytes()));
+    let compressed_data = gzip_compress(&apply_des_rules(&des_target, &des_rules));
+    // println!("{:?}\n", general_purpose::STANDARD.encode(&compressed_data));
+    let encrypted = aes_encrypt(&compressed_data, pri_id_hex.as_bytes());
+    println!("Final: {}", encrypted);
 
     let client = Client::new();
     let response: Value = client
@@ -115,7 +131,7 @@ pub fn get_d_id() -> String {
         .json(&json!({
             "appId": "default",
             "compress": 2,
-            "data": general_purpose::STANDARD.encode(encrypted),
+            "data": encrypted,
             "encode": 5,
             "ep": ep_base64,
             "organization": "UWXspnCCJN4sfYlNfqps",
@@ -130,34 +146,58 @@ pub fn get_d_id() -> String {
         panic!("D_ID calculation failed!");
     }
     return format!("B{}", response["detail"]["deviceId"].as_str().unwrap());
+    // return "别急".to_string();
 }
 
 fn des_encrypt(key: &[u8], data: &[u8]) -> Vec<u8> {
-    let data_len = data.len();
     let mut buffer = data.to_vec();
-    let padding_len = if data_len % 8 == 0 { 0 } else { 8 - data_len % 8 };
-    buffer.extend(vec![padding_len as u8; padding_len]);
-    let cipher = Des::new_from_slice(key).expect("Invalid DES key");
-    for i in (0..buffer.len()).step_by(8) {
-        let mut block = GenericArray::from_mut_slice(&mut buffer[i..i + 8]);
-        cipher.encrypt_block(&mut block);
+    // Pad with null bytes to a multiple of 8 bytes, and pad at least 8 bytes
+    let padding_len = 8 - (buffer.len() % 8);
+    buffer.extend(vec![0; padding_len]);
+    // Convert to a 24-byte key for Triple DES
+    let key_24: [u8; 24] = {
+        let mut key_24 = [0u8; 24];
+        let key_len = key.len();
+        for i in 0..24 {
+            key_24[i] = key[i % key_len];
+        }
+        key_24
+    };
+    let cipher = TdesEde3::new_from_slice(&key_24).expect("Invalid Triple DES key");
+    let mut result = Vec::new();
+    for block in buffer.chunks(8) {
+        let mut block_arr = GenericArray::clone_from_slice(block);
+        cipher.encrypt_block(&mut block_arr);
+        result.extend_from_slice(block_arr.as_slice());
     }
-    return buffer;
+    return result;
 }
 
-fn apply_des_rules(input: serde_json::Map<String, Value>, rules: &HashMap<String, HashMap<String, Value>>) -> serde_json::Map<String, Value> {
-    let mut result = serde_json::Map::new();
+fn apply_des_rules(input: &Map<String, Value>, rules: &HashMap<String, HashMap<String, Value>>) -> Map<String, Value> {
+    let mut result = Map::new();
     for (key, value) in input.iter() {
+        let string_value = match value.as_str() {
+            Some(s) => s.to_string(),
+            None => value.to_string(),
+        };
         if let Some(rule) = rules.get(key) {
             if let Some(is_encrypt) = rule.get("is_encrypt").and_then(|v| v.as_i64()) {
                 if is_encrypt == 1 {
-                    let key = rule["key"].as_str().expect("Missing key in DES_RULE").as_bytes();
-                    let data = value.as_str().unwrap_or("").as_bytes();
-                    let encrypted = des_encrypt(key, data);
-                    result.insert(rule["obfuscated_name"].as_str().unwrap().to_string(), Value::String(general_purpose::STANDARD.encode(&encrypted)));
+                    if let (Some(key_str), Some(obfuscated_name)) = (rule.get("key").and_then(|v| v.as_str()), rule.get("obfuscated_name").and_then(|v| v.as_str())) {
+                        let key = key_str.as_bytes();
+                        let data = string_value.as_bytes();
+                        let encrypted = des_encrypt(key, data);
+                        result.insert(obfuscated_name.to_string(), Value::String(general_purpose::STANDARD.encode(&encrypted)));
+                    } else {
+                        result.insert(key.clone(), value.clone());
+                    }
+                } else if let Some(obfuscated_name) = rule.get("obfuscated_name").and_then(|v| v.as_str()) {
+                    result.insert(obfuscated_name.to_string(), value.clone());
                 } else {
-                    result.insert(rule["obfuscated_name"].as_str().unwrap().to_string(), value.clone());
+                    result.insert(key.clone(), value.clone());
                 }
+            } else {
+                result.insert(key.clone(), value.clone());
             }
         } else {
             result.insert(key.clone(), value.clone());
@@ -166,22 +206,23 @@ fn apply_des_rules(input: serde_json::Map<String, Value>, rules: &HashMap<String
     return result;
 }
 
-fn gzip_compress(input: &str) -> Vec<u8> {
-    let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
-    encoder.write_all(input.as_bytes()).expect("Failed to write data");
+fn gzip_compress(input: &Map<String, Value>) -> Vec<u8> {
+    let json_str = serde_json::to_string(input).unwrap();
+    let mut encoder = GzEncoder::new(Vec::new(), Compression::new(2));
+    encoder.write_all(json_str.as_bytes()).unwrap();
     return encoder.finish().expect("Failed to finish compression");
 }
 
-fn get_tn(data: &serde_json::Map<String, Value>) -> String {
+fn get_tn(data: &Map<String, Value>) -> String {
     let mut sorted_keys: Vec<_> = data.keys().collect();
     sorted_keys.sort();
     let mut result = String::new();
     for key in sorted_keys {
         let value = &data[key];
-        if value.is_i64() || value.is_f64() {
-            result.push_str(&(value.as_f64().unwrap_or(0.0) * 10000.0).to_string());
-        } else if value.is_object() {
-            result.push_str(&get_tn(value.as_object().unwrap()));
+        if let Some(number) = value.as_i64() {
+            result.push_str(&(number * 10000).to_string());
+        } else if let Some(object) = value.as_object() {
+            result.push_str(&get_tn(object));
         } else {
             result.push_str(value.as_str().unwrap_or(""));
         }
@@ -189,31 +230,49 @@ fn get_tn(data: &serde_json::Map<String, Value>) -> String {
     return result;
 }
 
-fn aes_encrypt(key: &[u8], data: &[u8]) -> Vec<u8> {
+fn aes_encrypt(data: &[u8], key: &[u8]) -> String {
+    let encoded_base64 = general_purpose::STANDARD.encode(data);
+    let ascii_data = &encoded_base64.into_bytes(); // Convert to ASCII Bytes Vector !important
+    // println!("{:?}", ascii_data);
     let cipher = Cipher::aes_128_cbc();
     let iv = b"0102030405060708";
+    // 手动填充至16字节倍数
+    let mut padded_data = ascii_data.to_vec();
+    while padded_data.len() % 16 != 0 {
+        padded_data.push(0); // 填充\x00
+    }
+    // println!("WTF: {}\n", general_purpose::STANDARD.encode(ascii_data));
+    // println!("Data before padding: {}\n", hex::encode(&ascii_data));
+    // println!("Padded data: {}\n", hex::encode(&padded_data));
+    // println!("Key data: {}\n", hex::encode(key));
+    // println!("IV data: {}\n", String::from_utf8_lossy(iv));
     let mut crypter = Crypter::new(cipher, Mode::Encrypt, key, Some(iv)).unwrap();
     crypter.pad(true);
-    let mut ciphertext = vec![0; data.len() + cipher.block_size()];
-    let count = crypter.update(data, &mut ciphertext).unwrap();
+    let mut ciphertext = vec![0; padded_data.len() + cipher.block_size()];
+    let count = crypter.update(&padded_data, &mut ciphertext).unwrap();
     let final_count = crypter.finalize(&mut ciphertext[count..]).unwrap();
     ciphertext.truncate(count + final_count);
-    return ciphertext;
+    // println!("count={}, final={}\n", count, final_count);
+    // println!("Ciphertext: {}\n", hex::encode(&ciphertext));
+    hex::encode(ciphertext)
 }
 
 fn get_smid() -> String {
-    let now = SystemTime::now();
-    let since_the_epoch = now.duration_since(UNIX_EPOCH).expect("Time went backwards");
-    let in_ms = since_the_epoch.as_millis();
-
-    let t = format!("{}", in_ms / 1000);
-    let uid = Uuid::new_v4().to_string();
-    let mut hasher = Md5::new();
+    let now: DateTime<Local> = Local::now();
+    let time_str = now.format("%Y%m%d%H%M%S").to_string();
+    // let uid = Uuid::new_v4().to_string();
+    let uid = "a3a8509d-f437-48cb-a929-3b28d6ab82d6".to_string();
+    let mut hasher: Md5 = Md5::new();
     hasher.update(uid.as_bytes());
     let result = hasher.finalize();
-    let v = format!("{}{}{:x}00", &t[0..4], &t[4..8], result);
-    let mut hasher = Md5::new();
+    let v = format!("{}{:x}00", time_str, result);
+    let mut hasher: Md5 = Md5::new();
     hasher.update(format!("smsk_web_{}", v).as_bytes());
     let smsk_web = hasher.finalize();
-    return format!("{}{:x}{}", v, smsk_web, 0);
+    let mut result = String::from(v);
+    for byte in &smsk_web[0..7] {
+        result.push_str(&format!("{:02x}", byte));
+    }
+    result.push('0');
+    return result;
 }

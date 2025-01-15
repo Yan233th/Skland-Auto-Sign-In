@@ -39,7 +39,7 @@ pub fn get_credential(client: &Client, headers: &HeaderMap, authorization: &str)
     let credential_response: Value = client
         .post("https://zonai.skland.com/web/v1/user/auth/generate_cred_by_code")
         .headers(headers.clone())
-        .json(&json!({"code":authorization,"kind":1}))
+        .json(&json!({ "code": authorization, "kind": 1 }))
         .send()
         .unwrap()
         .json()
