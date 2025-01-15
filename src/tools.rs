@@ -35,21 +35,6 @@ pub fn generate_headers() -> HeaderMap {
     return headers;
 }
 
-pub fn get_credential(client: &Client, headers: &HeaderMap, authorization: &str) -> String {
-    let credential_response: Value = client
-        .post("https://zonai.skland.com/web/v1/user/auth/generate_cred_by_code")
-        .headers(headers.clone())
-        .json(&json!({ "code": authorization, "kind": 1 }))
-        .send()
-        .unwrap()
-        .json()
-        .unwrap();
-    if credential_response["code"] != 0 {
-        panic!("Failed to get credential: {}", credential_response["message"]);
-    }
-    return credential_response["data"].to_string();
-}
-
 pub fn get_authorization(client: &Client, headers: &HeaderMap, token: &str) -> String {
     let authorization_response: Value = client
         .post("https://as.hypergryph.com/user/oauth2/v2/grant")
@@ -62,5 +47,22 @@ pub fn get_authorization(client: &Client, headers: &HeaderMap, token: &str) -> S
     if authorization_response["status"] != 0 {
         panic!("Failed to get authorization: {}", authorization_response["message"]);
     }
-    return authorization_response["data"]["code"].to_string();
+    return authorization_response["data"]["code"].as_str().expect("Not a String!").to_string();
+}
+
+pub fn get_credential(client: &Client, headers: &HeaderMap, authorization: &str) -> Value {
+    println!("{:?}", authorization);
+    let credential_response: Value = client
+        .post("https://zonai.skland.com/web/v1/user/auth/generate_cred_by_code")
+        .headers(headers.clone())
+        .json(&json!({ "code": authorization, "kind": 1 }))
+        .send()
+        .unwrap()
+        .json()
+        .unwrap();
+    println!("{:?}", credential_response);
+    if credential_response["code"] != 0 {
+        panic!("Failed to get credential: {}", credential_response["message"]);
+    }
+    return credential_response["data"].clone();
 }

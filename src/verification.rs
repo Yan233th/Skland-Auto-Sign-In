@@ -78,9 +78,7 @@ const BROWSER_ENV: &str = r#"{
 pub fn get_d_id() -> String {
     let browser_env: Map<String, Value> = serde_json::from_str(BROWSER_ENV).unwrap();
     let des_rules: HashMap<String, HashMap<String, Value>> = serde_json::from_str(DES_RULE).unwrap();
-    // let uid = Uuid::new_v4().to_string();
-    // println!("{}", Uuid::new_v4().to_string());
-    let uid = "25b1c0db-6eb2-4576-9c11-f67e3dd151c2".to_string();
+    let uid = Uuid::new_v4().to_string();
     // Correctly hash and get the first 8 bytes
     let pri_id_hash = Md5::digest(uid.as_bytes());
     let pri_id = &pri_id_hash[0..8];
@@ -95,19 +93,14 @@ pub fn get_d_id() -> String {
     let mut ep = vec![0; rsa.size() as usize];
     let ep_len = rsa.public_encrypt(uid.as_bytes(), &mut ep, openssl::rsa::Padding::PKCS1).unwrap();
     ep.truncate(ep_len);
-    // let ep_base64 = general_purpose::STANDARD.encode(&ep);
-    let ep_base64 = "SC/1EeAuDOOSeCKL3pbCNb0iyi03PCH3s3e3T7JTKRVm9tU1PmQ+4M1YDybFZCr3iIr3s4IUDexvx+ZhwE91KTbfATRB//N/g0CLHF5ntYf9GrHfoE/Qdfzm0Wad68++9sCxbqqlldsJETbBwr2GVYssDzbhsEQAB98quKGjJm4=".to_string();
-    // println!("ep_base64: {}", ep_base64);
+    let ep_base64 = general_purpose::STANDARD.encode(&ep);
     let now = SystemTime::now();
     let since_the_epoch = now.duration_since(UNIX_EPOCH).expect("Time went backwards");
     let in_ms = since_the_epoch.as_millis();
-    // println!("current_time: {}", in_ms.to_string());
     let mut browser = browser_env.clone();
     browser.insert("vpw".to_string(), json!(Uuid::new_v4()));
-    // browser.insert("vpw".to_string(), json!("09a30d6e-13c4-4398-90d0-3885b7571e8b"));
-    browser.insert("svm".to_string(), json!(in_ms));
     browser.insert("trees".to_string(), json!(Uuid::new_v4()));
-    // browser.insert("trees".to_string(), json!("e8156811-499b-4fe1-8869-4bddb9997ff7"));
+    browser.insert("svm".to_string(), json!(in_ms));
     browser.insert("pmf".to_string(), json!(in_ms));
     let mut des_target: Map<String, Value> = serde_json::from_str(DES_TARGET).unwrap();
     des_target.insert("smid".to_string(), json!(get_smid()));
@@ -115,15 +108,9 @@ pub fn get_d_id() -> String {
         des_target.insert(key.clone(), json!(value));
     }
     des_target.insert("tn".to_string(), json!(format!("{:x}", Md5::digest(get_tn(&des_target).as_bytes()))));
-    // des_target.clear();
-    // des_target = generate_data();
-    // println!("{:?}\n", des_target);
-    // println!("{:?}\n", apply_des_rules(&des_target, &des_rules));
-    // println!("{:?}\n", String::from_utf8_lossy(pri_id_hex.as_bytes()));
     let compressed_data = gzip_compress(&apply_des_rules(&des_target, &des_rules));
-    // println!("{:?}\n", general_purpose::STANDARD.encode(&compressed_data));
     let encrypted = aes_encrypt(&compressed_data, pri_id_hex.as_bytes());
-    println!("Final: {}", encrypted);
+    // println!("Final: {}", encrypted);
 
     let client = Client::new();
     let response: Value = client
@@ -142,11 +129,10 @@ pub fn get_d_id() -> String {
         .json()
         .unwrap();
     if response["code"] != 1100 {
-        println!("{}", response);
+        eprintln!("{}", response);
         panic!("D_ID calculation failed!");
     }
     return format!("B{}", response["detail"]["deviceId"].as_str().unwrap());
-    // return "别急".to_string();
 }
 
 fn des_encrypt(key: &[u8], data: &[u8]) -> Vec<u8> {
@@ -233,7 +219,6 @@ fn get_tn(data: &Map<String, Value>) -> String {
 fn aes_encrypt(data: &[u8], key: &[u8]) -> String {
     let encoded_base64 = general_purpose::STANDARD.encode(data);
     let ascii_data = &encoded_base64.into_bytes(); // Convert to ASCII Bytes Vector !important
-    // println!("{:?}", ascii_data);
     let cipher = Cipher::aes_128_cbc();
     let iv = b"0102030405060708";
     // 手动填充至16字节倍数
@@ -241,32 +226,24 @@ fn aes_encrypt(data: &[u8], key: &[u8]) -> String {
     while padded_data.len() % 16 != 0 {
         padded_data.push(0); // 填充\x00
     }
-    // println!("WTF: {}\n", general_purpose::STANDARD.encode(ascii_data));
-    // println!("Data before padding: {}\n", hex::encode(&ascii_data));
-    // println!("Padded data: {}\n", hex::encode(&padded_data));
-    // println!("Key data: {}\n", hex::encode(key));
-    // println!("IV data: {}\n", String::from_utf8_lossy(iv));
     let mut crypter = Crypter::new(cipher, Mode::Encrypt, key, Some(iv)).unwrap();
     crypter.pad(true);
     let mut ciphertext = vec![0; padded_data.len() + cipher.block_size()];
     let count = crypter.update(&padded_data, &mut ciphertext).unwrap();
     let final_count = crypter.finalize(&mut ciphertext[count..]).unwrap();
     ciphertext.truncate(count + final_count);
-    // println!("count={}, final={}\n", count, final_count);
-    // println!("Ciphertext: {}\n", hex::encode(&ciphertext));
     hex::encode(ciphertext)
 }
 
 fn get_smid() -> String {
     let now: DateTime<Local> = Local::now();
     let time_str = now.format("%Y%m%d%H%M%S").to_string();
-    // let uid = Uuid::new_v4().to_string();
-    let uid = "a3a8509d-f437-48cb-a929-3b28d6ab82d6".to_string();
-    let mut hasher: Md5 = Md5::new();
+    let uid = Uuid::new_v4().to_string();
+    let mut hasher = Md5::new();
     hasher.update(uid.as_bytes());
     let result = hasher.finalize();
     let v = format!("{}{:x}00", time_str, result);
-    let mut hasher: Md5 = Md5::new();
+    let mut hasher = Md5::new();
     hasher.update(format!("smsk_web_{}", v).as_bytes());
     let smsk_web = hasher.finalize();
     let mut result = String::from(v);
