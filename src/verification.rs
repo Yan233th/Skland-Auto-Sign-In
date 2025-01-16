@@ -75,7 +75,7 @@ const BROWSER_ENV: &str = r#"{
     "status": "0011"
 }"#;
 
-pub fn get_d_id(client: &Client) -> String {
+pub fn get_did(client: &Client) -> String {
     let browser_env: Map<String, Value> = serde_json::from_str(BROWSER_ENV).unwrap();
     let des_rules: HashMap<String, HashMap<String, Value>> = serde_json::from_str(DES_RULE).unwrap();
     let uid = Uuid::new_v4().to_string();
