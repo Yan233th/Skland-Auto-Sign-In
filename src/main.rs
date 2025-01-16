@@ -16,5 +16,6 @@ fn main() {
         let authorization = tools::get_authorization(&client, &headers, &token);
         let credential = tools::get_credential(&client, &headers, &authorization);
         println!("Got credential successfully!");
+        tools::do_sign(&credential);
     }
 }

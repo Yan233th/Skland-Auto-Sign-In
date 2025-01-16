@@ -2,6 +2,7 @@ use base64::{engine::general_purpose, Engine};
 use chrono::{DateTime, Local};
 use flate2::{write::GzEncoder, Compression};
 use hex;
+use hmac::{Hmac, Mac};
 use md5::{Digest, Md5};
 use openssl::{
     rsa::Rsa,
@@ -9,6 +10,7 @@ use openssl::{
 };
 use reqwest::blocking::Client;
 use serde_json::{json, Map, Value};
+use sha2::Sha256;
 use std::{
     collections::HashMap,
     io::prelude::Write,
@@ -79,7 +81,6 @@ pub fn get_did(client: &Client) -> String {
     let pri_id = &pri_id_hash[0..8];
     // Convert pri_id to a hex string
     let pri_id_hex = pri_id.iter().map(|b| format!("{:02x}", b)).collect::<String>();
-
     // RSA encrypt
     let public_key = general_purpose::STANDARD
         .decode("MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCmxMNr7n8ZeT0tE1R9j/mPixoinPkeM+k4VGIn/s0k7N5rJAfnZ0eMER+QhwFvshzo0LNmeUkpR8uIlU/GEVr8mN28sKmwd2gpygqj0ePnBmOW4v0ZVwbSYK+izkhVFk2V/doLoMbWy6b+UnA8mkjvg0iYWRByfRsK2gdl7llqCwIDAQAB")
@@ -89,8 +90,7 @@ pub fn get_did(client: &Client) -> String {
     let ep_len = rsa.public_encrypt(uid.as_bytes(), &mut ep, openssl::rsa::Padding::PKCS1).unwrap();
     ep.truncate(ep_len);
     let ep_base64 = general_purpose::STANDARD.encode(&ep);
-    let now = SystemTime::now();
-    let since_the_epoch = now.duration_since(UNIX_EPOCH).expect("Time went backwards");
+    let since_the_epoch = SystemTime::now().duration_since(UNIX_EPOCH).expect("Time went backwards");
     let in_ms = since_the_epoch.as_millis();
     let mut browser = browser_env.clone();
     browser.insert("vpw".to_string(), json!(Uuid::new_v4()));
@@ -219,10 +219,10 @@ fn aes_encrypt(data: &[u8], key: &[u8]) -> String {
     let ascii_data = &encoded_base64.into_bytes(); // Convert to ASCII Bytes Vector !important
     let cipher = Cipher::aes_128_cbc();
     let iv = b"0102030405060708";
-    // 手动填充至16字节倍数
+    // Manually pad to a multiple of 16 bytes
     let mut padded_data = ascii_data.to_vec();
     while padded_data.len() % 16 != 0 {
-        padded_data.push(0); // 填充\x00
+        padded_data.push(0); // Pad with \x00
     }
     let mut crypter = Crypter::new(cipher, Mode::Encrypt, key, Some(iv)).unwrap();
     crypter.pad(true);
@@ -250,4 +250,19 @@ fn get_smid() -> String {
     }
     result.push('0');
     return result;
+}
+
+pub fn generate_signature(token: &str, path: &str, body_or_query: &str) -> (String, HashMap<String, Value>) {
+    let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as i64 - 2;
+    let header_ca: HashMap<String, Value> = serde_json::from_value(json!({"platform": "", "timestamp": timestamp, "dId": "", "vName": ""})).unwrap();
+    let header_ca_str = serde_json::to_string(&header_ca).unwrap();
+    let s = format!("{}{}{}{}", path, body_or_query, timestamp, header_ca_str);
+    let mut mac = Hmac::<Sha256>::new_from_slice(token.as_bytes()).unwrap();
+    mac.update(s.as_bytes());
+    let hex_s = mac.finalize().into_bytes();
+    let mut hasher = Md5::new();
+    hasher.update(hex_s);
+    let result = hasher.finalize();
+    let md5_hex = format!("{:x}", result);
+    return (md5_hex, header_ca);
 }
