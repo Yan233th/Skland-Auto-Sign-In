@@ -1,10 +1,5 @@
 use base64::{engine::general_purpose, Engine};
 use chrono::{DateTime, Local};
-use cipher::{
-    generic_array::GenericArray,
-    {BlockEncrypt, KeyInit},
-};
-use des::TdesEde3;
 use flate2::{write::GzEncoder, Compression};
 use hex;
 use md5::{Digest, Md5};
@@ -134,6 +129,11 @@ pub fn get_did(client: &Client) -> String {
 }
 
 fn des_encrypt(key: &[u8], data: &[u8]) -> Vec<u8> {
+    use cipher::{
+        generic_array::GenericArray,
+        {BlockEncrypt, KeyInit},
+    };
+    use des::TdesEde3;
     let mut buffer = data.to_vec();
     // Pad with null bytes to a multiple of 8 bytes, and pad at least 8 bytes
     let padding_len = 8 - (buffer.len() % 8);
