@@ -215,13 +215,12 @@ fn aes_encrypt(data: &[u8], key: &[u8]) -> String {
     let encoded_base64 = general_purpose::STANDARD.encode(data);
     let ascii_data = &encoded_base64.into_bytes(); // Convert to ASCII Bytes Vector !important
     let cipher = Cipher::aes_128_cbc();
-    let iv = b"0102030405060708";
     // Manually pad to a multiple of 16 bytes
     let mut padded_data = ascii_data.to_vec();
     while padded_data.len() % 16 != 0 {
         padded_data.push(0);
     }
-    let mut crypter = Crypter::new(cipher, Mode::Encrypt, key, Some(iv)).unwrap();
+    let mut crypter = Crypter::new(cipher, Mode::Encrypt, key, Some(b"0102030405060708")).unwrap();
     crypter.pad(true);
     let mut ciphertext = vec![0; padded_data.len() + cipher.block_size()];
     let count = crypter.update(&padded_data, &mut ciphertext).unwrap();
@@ -231,13 +230,11 @@ fn aes_encrypt(data: &[u8], key: &[u8]) -> String {
 }
 
 fn get_smid() -> String {
-    let now: DateTime<Local> = Local::now();
-    let time_str = now.format("%Y%m%d%H%M%S").to_string();
+    let time_str = Local::now().format("%Y%m%d%H%M%S").to_string();
     let uid = Uuid::new_v4().to_string();
     let mut hasher = Md5::new();
     hasher.update(uid.as_bytes());
-    let result = hasher.finalize();
-    let v = format!("{}{:x}00", time_str, result);
+    let v = format!("{}{:x}00", time_str, hasher.finalize());
     let mut hasher = Md5::new();
     hasher.update(format!("smsk_web_{}", v).as_bytes());
     let smsk_web = hasher.finalize();
@@ -250,7 +247,7 @@ fn get_smid() -> String {
 }
 
 pub fn generate_signature(token: &str, path: &str, body_or_query: &str) -> (String, HashMap<String, Value>) {
-    let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as i64 - 2;
+    let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as i64;
     let header_ca: HashMap<String, Value> = serde_json::from_value(json!({"platform": "", "timestamp": timestamp, "dId": "", "vName": ""})).unwrap();
     let header_ca_str = format!(r#"{{"platform":"","timestamp":"{}","dId":"","vName":""}}"#, timestamp);
     let s = format!("{}{}{}{}", path, body_or_query, timestamp, header_ca_str);
