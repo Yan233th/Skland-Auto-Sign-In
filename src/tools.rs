@@ -83,13 +83,13 @@ pub fn do_sign(cred_resp: &Value) {
         let headers = get_sign_header("https://zonai.skland.com/api/v1/game/attendance", "post", Some(body.to_string().as_str()), &http_header, http_token);
         let resp: Value = client.post("https://zonai.skland.com/api/v1/game/attendance").headers(headers).json(&body).send().unwrap().json().unwrap();
         if resp["code"].as_i64().unwrap() != 0 {
-            eprintln!("Character {}({}) sign-in failed! Reason: {}", nick_name, channel_name, resp["message"].as_str().unwrap_or("Unknown error"));
+            eprintln!("{}({}) sign-in failed! Reason: {}", nick_name, channel_name, resp["message"].as_str().unwrap_or("Unknown error"));
             continue;
         }
         for award in resp["data"]["awards"].as_array().unwrap() {
             let name = award["resource"]["name"].as_str().unwrap_or("Unknown");
             let count = award["count"].as_i64().unwrap_or(1);
-            println!("Character {}({}) signed in successfully and received {}*{}.", nick_name, channel_name, name, count);
+            println!("{}({}) signed in successfully and received {}*{}.", nick_name, channel_name, name, count);
         }
     }
 }
