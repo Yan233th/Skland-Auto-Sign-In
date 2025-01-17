@@ -67,12 +67,19 @@ jobs:
           target: ${{ matrix.target }}
           override: true
 
-      - name: Build project
+      - name: Build project (Linux)
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target ${{ matrix.target }}
+
+      - name: Build project (Windows)
+        if: ${{ matrix.os == 'windows-latest' }}
         uses: actions-rs/cargo@v1
         env:
-          # Only set OPENSSL_DIR and OPENSSL_LIB_DIR for Windows
-          OPENSSL_DIR: ${{ matrix.os == 'windows-latest' && 'C:/Program Files/OpenSSL' || '' }}
-          OPENSSL_LIB_DIR: ${{ matrix.os == 'windows-latest' && 'C:/Program Files/OpenSSL/lib/VC/x64/MD' || '' }}
+          OPENSSL_DIR: "C:/Program Files/OpenSSL"
+          OPENSSL_LIB_DIR: "C:/Program Files/OpenSSL/lib/VC/x64/MD"
         with:
           command: build
           args: --release --target ${{ matrix.target }}
