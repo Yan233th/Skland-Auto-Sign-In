@@ -1,5 +1,5 @@
 use base64::{engine::general_purpose, Engine};
-use chrono::{DateTime, Local};
+use chrono::Local;
 use flate2::{write::GzEncoder, Compression};
 use hex;
 use hmac::{Hmac, Mac};
