@@ -31,16 +31,23 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: Install OpenSSL dev (Ubuntu)
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libssl-dev
+
+      - name: Install OpenSSL dev (Windows)
+        if: ${{ matrix.os == 'windows-latest' }}
+        run: |
+          choco install openssl -y
+
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           target: ${{ matrix.target }}
           override: true
-
-      - name: Install openssl-probe
-        run: |
-          cargo install openssl-probe
 
       - name: Build project
         uses: actions-rs/cargo@v1
