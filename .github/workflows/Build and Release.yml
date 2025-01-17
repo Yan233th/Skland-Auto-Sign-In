@@ -8,8 +8,28 @@ on:
         required: true
 
 jobs:
-  build:
-    name: Build for ${{ matrix.os }} (${{ matrix.target }})
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    env:
+      PROJECT_NAME: Skland-Auto-Sign-In
+    steps:
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.event.inputs.tag_name }}
+          release_name: ${{ env.PROJECT_NAME }} ${{ github.event.inputs.tag_name }}
+          draft: false
+          prerelease: false
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+
+  build-and-upload:
+    name: Build and Upload for ${{ matrix.os }} (${{ matrix.target }})
+    needs: create-release
     runs-on: ${{ matrix.os }}
     env:
       PROJECT_NAME: Skland-Auto-Sign-In
@@ -38,7 +58,7 @@ jobs:
       - name: Install OpenSSL dev (Windows)
         if: ${{ matrix.os == 'windows-latest' }}
         run: |
-          choco install -y openssl
+          choco install openssl -y
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -47,69 +67,22 @@ jobs:
           target: ${{ matrix.target }}
           override: true
 
-      - name: Build project (Linux)
-        if: ${{ matrix.os == 'ubuntu-latest' }}
+      - name: Build project
         uses: actions-rs/cargo@v1
+        env:
+          # Only set OPENSSL_DIR and OPENSSL_LIB_DIR for Windows
+          OPENSSL_DIR: ${{ matrix.os == 'windows-latest' && 'C:/Program Files/OpenSSL' || '' }}
+          OPENSSL_LIB_DIR: ${{ matrix.os == 'windows-latest' && 'C:/Program Files/OpenSSL/lib/VC/x64/MD' || '' }}
         with:
           command: build
           args: --release --target ${{ matrix.target }}
 
-      - name: Build project (Windows)
-        if: ${{ matrix.os == 'windows-latest' }}
-        uses: actions-rs/cargo@v1
-        env:
-           OPENSSL_DIR: "C:/Program Files/OpenSSL"
-           OPENSSL_LIB_DIR: "C:/Program Files/OpenSSL/lib/VC/x64/MD"
-        with:
-          command: build
-          args: --release --target ${{ matrix.target }}
-
-      - name: Rename artifact
-        shell: bash
-        run: |
-          mv target/${{ matrix.target }}/release/${{ env.PROJECT_NAME }}${{ matrix.target == 'x86_64-pc-windows-msvc' && '.exe' || '' }} ${{ env.PROJECT_NAME }}-${{ env.VERSION }}-${{ matrix.target-label }}${{ matrix.target == 'x86_64-pc-windows-msvc' && '.exe' || '' }}
-      
-      - name: Upload artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{ env.PROJECT_NAME }}-${{ env.VERSION }}-${{ matrix.target-label }}
-          path: ${{ env.PROJECT_NAME }}-${{ env.VERSION }}-${{ matrix.target-label }}${{ matrix.target == 'x86_64-pc-windows-msvc' && '.exe' || '' }}
-
-  create-release:
-    name: Create GitHub Release
-    needs: build
-    runs-on: ubuntu-latest
-    env:
-      PROJECT_NAME: Skland-Auto-Sign-In
-      VERSION: ${{ github.event.inputs.tag_name }}
-    strategy:
-      matrix:
-        file:
-          - path: 
-
-    steps:
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.event.inputs.tag_name }}
-          release_name: ${{ env.PROJECT_NAME }} ${{ github.event.inputs.tag_name }} # Project Name + Version
-          draft: false
-          prerelease: false
-
-      - name: Download all artifacts
-        uses: actions/download-artifact@v3
-        with:
-          path: artifacts
-
-      - name: Upload release assets
+      - name: Upload release asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./artifacts/*
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: target/${{ matrix.target }}/release/${{ env.PROJECT_NAME }}${{ matrix.target == 'x86_64-pc-windows-msvc' && '.exe' || '' }}
           asset_name: ${{ env.PROJECT_NAME }}-${{ env.VERSION }}-${{ matrix.target-label }}${{ matrix.target == 'x86_64-pc-windows-msvc' && '.exe' || '' }}
           asset_content_type: application/octet-stream
