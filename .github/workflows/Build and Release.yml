@@ -41,10 +41,9 @@ jobs:
 
       - name: Set and print OpenSSL environment variables (Windows)
         if: ${{ matrix.os == 'windows-latest' }}
+        env:
+          OPENSSL_DIR: "C:/Program Files/OpenSSL"
         run: |
-          echo 'OPENSSL_DIR=C:/Program Files/OpenSSL' >> $GITHUB_ENV
-          echo 'OPENSSL_LIB_DIR=$OPENSSL_DIR/lib/VC' >> $GITHUB_ENV
-          echo 'OPENSSL_INCLUDE_DIR=$OPENSSL_DIR/include' >> $GITHUB_ENV
           echo "OPENSSL_DIR: $OPENSSL_DIR"
           echo "OPENSSL_LIB_DIR: $OPENSSL_LIB_DIR"
           echo "OPENSSL_INCLUDE_DIR: $OPENSSL_INCLUDE_DIR"
