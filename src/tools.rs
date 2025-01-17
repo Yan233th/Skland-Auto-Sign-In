@@ -52,7 +52,6 @@ pub fn get_authorization(client: &Client, headers: &HeaderMap, token: &str) -> S
 }
 
 pub fn get_credential(client: &Client, headers: &HeaderMap, authorization: &str) -> Value {
-    println!("{:?}", authorization);
     let credential_response: Value = client
         .post("https://zonai.skland.com/web/v1/user/auth/generate_cred_by_code")
         .headers(headers.clone())
@@ -61,7 +60,6 @@ pub fn get_credential(client: &Client, headers: &HeaderMap, authorization: &str)
         .unwrap()
         .json()
         .unwrap();
-    println!("{:?}", credential_response);
     if credential_response["code"] != 0 {
         panic!("Failed to get credential: {}", credential_response["message"]);
     }

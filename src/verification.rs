@@ -76,12 +76,9 @@ pub fn get_did(client: &Client) -> String {
     let browser_env: Map<String, Value> = serde_json::from_str(BROWSER_ENV).unwrap();
     let des_rules: HashMap<String, HashMap<String, Value>> = serde_json::from_str(DES_RULE).unwrap();
     let uid = Uuid::new_v4().to_string();
-    // Correctly hash and get the first 8 bytes
     let pri_id_hash = Md5::digest(uid.as_bytes());
     let pri_id = &pri_id_hash[0..8];
-    // Convert pri_id to a hex string
     let pri_id_hex = pri_id.iter().map(|b| format!("{:02x}", b)).collect::<String>();
-    // RSA encrypt
     let public_key = general_purpose::STANDARD
         .decode("MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCmxMNr7n8ZeT0tE1R9j/mPixoinPkeM+k4VGIn/s0k7N5rJAfnZ0eMER+QhwFvshzo0LNmeUkpR8uIlU/GEVr8mN28sKmwd2gpygqj0ePnBmOW4v0ZVwbSYK+izkhVFk2V/doLoMbWy6b+UnA8mkjvg0iYWRByfRsK2gdl7llqCwIDAQAB")
         .unwrap();
@@ -222,7 +219,7 @@ fn aes_encrypt(data: &[u8], key: &[u8]) -> String {
     // Manually pad to a multiple of 16 bytes
     let mut padded_data = ascii_data.to_vec();
     while padded_data.len() % 16 != 0 {
-        padded_data.push(0); // Pad with \x00
+        padded_data.push(0);
     }
     let mut crypter = Crypter::new(cipher, Mode::Encrypt, key, Some(iv)).unwrap();
     crypter.pad(true);
@@ -259,9 +256,9 @@ pub fn generate_signature(token: &str, path: &str, body_or_query: &str) -> (Stri
     let s = format!("{}{}{}{}", path, body_or_query, timestamp, header_ca_str);
     let mut mac = Hmac::<Sha256>::new_from_slice(token.as_bytes()).unwrap();
     mac.update(s.as_bytes());
-    let hex_s = hex::encode(mac.finalize().into_bytes()); // Convert to hexadecimal string
+    let hex_s = hex::encode(mac.finalize().into_bytes());
     let mut hasher = Md5::new();
-    hasher.update(hex_s.as_bytes()); // Hash the hex string
+    hasher.update(hex_s.as_bytes());
     let md5_hex = format!("{:x}", hasher.finalize());
     return (md5_hex, header_ca);
 }
