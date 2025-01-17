@@ -58,8 +58,7 @@ jobs:
         uses: actions-rs/cargo@v1
         env:
            OPENSSL_DIR: "C:/Program Files/OpenSSL"
-           OPENSSL_LIB_DIR: "C:/Program Files/OpenSSL/lib/VC"
-           OPENSSL_INCLUDE_DIR: "C:/Program Files/OpenSSL/include"
+           OPENSSL_LIB_DIR: "C:/Program Files/OpenSSL/lib/VC/x64/MD"
         with:
           command: build
           args: --release --target ${{ matrix.target }}
