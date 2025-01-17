@@ -103,9 +103,10 @@ jobs:
           path: artifacts
 
       - name: Upload release assets
-        run: |
-          for file in artifacts/*/*; do
-            gh release upload ${{ steps.create_release.outputs.tag_name }} "$file" --clobber
-          done
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for file in artifacts/*/*; do
+            echo "Uploading $file to ${{ steps.create_release.outputs.tag_name }}"
+            gh release upload ${{ steps.create_release.outputs.upload_url }} "$file" --clobber
+          done
