@@ -13,9 +13,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       PROJECT_NAME: Skland-Auto-Sign-In
-      OPENSSL_DIR: "C:/Program Files/OpenSSL"
-      OPENSSL_LIB_DIR: $OPENSSL_DIR/lib/VC
-      OPENSSL_INCLUDE_DIR: $OPENSSL_DIR/include
     strategy:
       fail-fast: false
       matrix:
@@ -42,14 +39,6 @@ jobs:
         run: |
           choco install openssl -y
 
-      - name: Print OpenSSL environment variables (Windows)
-        if: ${{ matrix.os == 'windows-latest' }}
-        run: |
-          echo "OPENSSL_DIR: $OPENSSL_DIR"
-          echo "OPENSSL_LIB_DIR: $OPENSSL_LIB_DIR"
-          echo "OPENSSL_INCLUDE_DIR: $OPENSSL_INCLUDE_DIR"
-        shell: bash
-
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
@@ -57,8 +46,20 @@ jobs:
           target: ${{ matrix.target }}
           override: true
 
-      - name: Build project
+      - name: Build project (Linux)
+        if: ${{ matrix.os == 'ubuntu-latest' }}
         uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target ${{ matrix.target }}
+
+      - name: Build project (Windows)
+        if: ${{ matrix.os == 'windows-latest' }}
+        uses: actions-rs/cargo@v1
+        env:
+           OPENSSL_DIR: "C:/Program Files/OpenSSL"
+           OPENSSL_LIB_DIR: "C:/Program Files/OpenSSL/lib/VC"
+           OPENSSL_INCLUDE_DIR: "C:/Program Files/OpenSSL/include"
         with:
           command: build
           args: --release --target ${{ matrix.target }}
