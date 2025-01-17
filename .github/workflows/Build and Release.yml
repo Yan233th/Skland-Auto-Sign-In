@@ -7,15 +7,12 @@ on:
         description: 'Release tag name (e.g., v1.0.0)'
         required: true
 
-env:
-  PROJECT_NAME: Skland-Auto-Sign-In
-
 jobs:
   build:
     name: Build for ${{ matrix.os }} (${{ matrix.target }})
     runs-on: ${{ matrix.os }}
-    env: # Define environment variables for the build job
-      PROJECT_NAME: Skland-Auto-Sign-In 
+    env:
+      PROJECT_NAME: Skland-Auto-Sign-In
     strategy:
       fail-fast: false
       matrix:
@@ -24,13 +21,13 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            artifact-name: ${{ env.PROJECT_NAME }}-linux-x64
+            target-label: linux-x64
           - os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
-            artifact-name: ${{ env.PROJECT_NAME }}-linux-arm64
+            target-label: linux-arm64
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            artifact-name: ${{ env.PROJECT_NAME }}-windows-x64.exe
+            target-label: windows-x64
 
     steps:
       - name: Checkout code
@@ -50,20 +47,26 @@ jobs:
           args: --release --target ${{ matrix.target }}
 
       - name: Rename artifact
+        env:
+          VERSION: ${{ github.event.inputs.tag_name }}
         shell: bash
         run: |
-          mv target/${{ matrix.target }}/release/${{ env.PROJECT_NAME }}${{ matrix.target == 'x86_64-pc-windows-msvc' && '.exe' || '' }} ${{ matrix.artifact-name }}
-
+          mv target/${{ matrix.target }}/release/${{ env.PROJECT_NAME }}${{ matrix.target == 'x86_64-pc-windows-msvc' && '.exe' || '' }} ${{ env.PROJECT_NAME }}-${{ env.VERSION }}-${{ matrix.target-label }}${{ matrix.target == 'x86_64-pc-windows-msvc' && '.exe' || '' }}
+      
       - name: Upload artifact
         uses: actions/upload-artifact@v3
+        env:
+          VERSION: ${{ github.event.inputs.tag_name }}
         with:
-          name: ${{ matrix.artifact-name }}
-          path: ${{ matrix.artifact-name }}
+          name: ${{ env.PROJECT_NAME }}-${{ env.VERSION }}-${{ matrix.target-label }}
+          path: ${{ env.PROJECT_NAME }}-${{ env.VERSION }}-${{ matrix.target-label }}${{ matrix.target == 'x86_64-pc-windows-msvc' && '.exe' || '' }}
 
   create-release:
     name: Create GitHub Release
     needs: build
     runs-on: ubuntu-latest
+    env:
+      PROJECT_NAME: Skland-Auto-Sign-In
 
     steps:
       - name: Create Release
@@ -73,7 +76,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ github.event.inputs.tag_name }}
-          release_name: Release ${{ github.event.inputs.tag_name }}
+          release_name: ${{ env.PROJECT_NAME }} ${{ github.event.inputs.tag_name }} # Project Name + Version
           draft: false
           prerelease: false
 
@@ -85,7 +88,7 @@ jobs:
       - name: Upload release assets
         run: |
           for file in artifacts/*/*; do
-            gh release upload ${{ steps.get_tag.outputs.tag_name }} "$file" --clobber
+            gh release upload ${{ steps.create_release.outputs.tag_name }} "$file" --clobber
           done
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
