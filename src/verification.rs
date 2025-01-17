@@ -259,10 +259,9 @@ pub fn generate_signature(token: &str, path: &str, body_or_query: &str) -> (Stri
     let s = format!("{}{}{}{}", path, body_or_query, timestamp, header_ca_str);
     let mut mac = Hmac::<Sha256>::new_from_slice(token.as_bytes()).unwrap();
     mac.update(s.as_bytes());
-    let hex_s = mac.finalize().into_bytes();
+    let hex_s = hex::encode(mac.finalize().into_bytes()); // Convert to hexadecimal string
     let mut hasher = Md5::new();
-    hasher.update(hex_s);
-    let result = hasher.finalize();
-    let md5_hex = format!("{:x}", result);
+    hasher.update(hex_s.as_bytes()); // Hash the hex string
+    let md5_hex = format!("{:x}", hasher.finalize());
     return (md5_hex, header_ca);
 }
