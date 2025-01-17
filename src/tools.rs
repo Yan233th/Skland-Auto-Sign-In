@@ -81,12 +81,15 @@ pub fn do_sign(cred_resp: &Value) {
         let channel_name = character["channelName"].as_str().unwrap_or("Unknown");
         let body = json!({"gameId": 1, "uid": character["uid"].as_str().unwrap()});
         let headers = get_sign_header("https://zonai.skland.com/api/v1/game/attendance", "post", Some(body.to_string().as_str()), &http_header, http_token);
-        let resp: Value = client.post("https://zonai.skland.com/api/v1/game/attendance").headers(headers).json(&body).send().unwrap().json().unwrap();
-        if resp["code"].as_i64().unwrap() != 0 {
-            eprintln!("{}({}) sign-in failed! Reason: {}", nick_name, channel_name, resp["message"].as_str().unwrap_or("Unknown error"));
+        let response_text = client.post("https://zonai.skland.com/api/v1/game/attendance").headers(headers).json(&body).send().unwrap().text().expect("Failed to get content!");
+        let response: Value = serde_json::from_str(&response_text).expect("Failed to parse JSON");
+        println!("{:?}", response_text);
+        println!("{:?}", response);
+        if response["code"].as_i64().unwrap() != 0 {
+            eprintln!("{}({}) sign-in failed! Reason: {}", nick_name, channel_name, response["message"].as_str().unwrap_or("Unknown error"));
             continue;
         }
-        for award in resp["data"]["awards"].as_array().unwrap() {
+        for award in response["data"]["awards"].as_array().unwrap() {
             let name = award["resource"]["name"].as_str().unwrap_or("Unknown");
             let count = award["count"].as_i64().unwrap_or(1);
             println!("{}({}) signed in successfully and received {}*{}.", nick_name, channel_name, name, count);
