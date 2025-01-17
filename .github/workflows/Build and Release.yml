@@ -13,6 +13,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       PROJECT_NAME: Skland-Auto-Sign-In
+      OPENSSL_DIR: "C:/Program Files/OpenSSL"
+      OPENSSL_LIB_DIR: $OPENSSL_DIR/lib/VC
+      OPENSSL_INCLUDE_DIR: $OPENSSL_DIR/include
     strategy:
       fail-fast: false
       matrix:
@@ -38,18 +41,6 @@ jobs:
         if: ${{ matrix.os == 'windows-latest' }}
         run: |
           choco install openssl -y
-
-      - name: Set OpenSSL environment variables (Windows)
-        if: ${{ matrix.os == 'windows-latest' }}
-        env:
-          OPENSSL_DIR: "C:/Program Files/OpenSSL"
-          OPENSSL_LIB_DIR: "$OPENSSL_DIR/lib/VC"
-          OPENSSL_INCLUDE_DIR: "$OPENSSL_DIR/include"
-        run: |
-          echo "OPENSSL_DIR: $OPENSSL_DIR"
-          echo "OPENSSL_LIB_DIR: $OPENSSL_LIB_DIR"
-          echo "OPENSSL_INCLUDE_DIR: $OPENSSL_INCLUDE_DIR"
-        shell: bash
 
       - name: Print OpenSSL environment variables (Windows)
         if: ${{ matrix.os == 'windows-latest' }}
