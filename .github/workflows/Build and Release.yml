@@ -39,10 +39,20 @@ jobs:
         run: |
           choco install openssl -y
 
-      - name: Set and print OpenSSL environment variables (Windows)
+      - name: Set OpenSSL environment variables (Windows)
         if: ${{ matrix.os == 'windows-latest' }}
         env:
           OPENSSL_DIR: "C:/Program Files/OpenSSL"
+          OPENSSL_LIB_DIR: "$OPENSSL_DIR/lib/VC"
+          OPENSSL_INCLUDE_DIR: "$OPENSSL_DIR/include"
+        run: |
+          echo "OPENSSL_DIR: $OPENSSL_DIR"
+          echo "OPENSSL_LIB_DIR: $OPENSSL_LIB_DIR"
+          echo "OPENSSL_INCLUDE_DIR: $OPENSSL_INCLUDE_DIR"
+        shell: bash
+
+      - name: Print OpenSSL environment variables (Windows)
+        if: ${{ matrix.os == 'windows-latest' }}
         run: |
           echo "OPENSSL_DIR: $OPENSSL_DIR"
           echo "OPENSSL_LIB_DIR: $OPENSSL_LIB_DIR"
