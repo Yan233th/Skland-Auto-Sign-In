@@ -38,6 +38,10 @@ jobs:
           target: ${{ matrix.target }}
           override: true
 
+      - name: Install openssl-probe
+        run: |
+          cargo install openssl-probe
+
       - name: Build project
         uses: actions-rs/cargo@v1
         with:
