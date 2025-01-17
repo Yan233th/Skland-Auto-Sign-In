@@ -14,6 +14,8 @@ jobs:
   build:
     name: Build for ${{ matrix.os }} (${{ matrix.target }})
     runs-on: ${{ matrix.os }}
+    env: # Define environment variables for the build job
+      PROJECT_NAME: Skland-Auto-Sign-In 
     strategy:
       fail-fast: false
       matrix:
