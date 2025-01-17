@@ -46,16 +46,16 @@ jobs:
           Get-Content openssl_paths.txt
         shell: pwsh
 
-      # - name: Set OpenSSL environment variables
-      #   shell: bash
-      #   run: |
-      #     if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
-      #        echo "OPENSSL_DIR=/usr" >> $GITHUB_ENV
-      #        echo "OPENSSL_LIB_DIR=/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV
-      #     elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-      #        echo "OPENSSL_DIR=C:/Program Files/OpenSSL" >> $GITHUB_ENV
-      #        echo "OPENSSL_LIB_DIR=C:/Program Files/OpenSSL/lib/VC" >> $GITHUB_ENV
-      #     fi
+      - name: Set and print OpenSSL environment variables (Windows)
+        if: ${{ matrix.os == 'windows-latest' }}
+        run: |
+          echo 'OPENSSL_DIR=C:/Program Files/OpenSSL' >> $GITHUB_ENV
+          echo 'OPENSSL_LIB_DIR=$OPENSSL_DIR/lib/VC' >> $GITHUB_ENV
+          echo 'OPENSSL_INCLUDE_DIR=$OPENSSL_DIR/include' >> $GITHUB_ENV
+          echo "OPENSSL_DIR: $OPENSSL_DIR"
+          echo "OPENSSL_LIB_DIR: $OPENSSL_LIB_DIR"
+          echo "OPENSSL_INCLUDE_DIR: $OPENSSL_INCLUDE_DIR"
+        shell: bash
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
