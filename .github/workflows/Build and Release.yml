@@ -42,6 +42,12 @@ jobs:
         run: |
           choco install openssl -y
 
+      - name: Install Cross-compilation toolchain (Ubuntu)
+        if: ${{ matrix.os == 'ubuntu-latest' && matrix.target == 'aarch64-unknown-linux-gnu' }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+
       - name: Set OpenSSL environment variables
         shell: bash
         run: |
@@ -49,8 +55,8 @@ jobs:
              echo "OPENSSL_DIR=/usr" >> $GITHUB_ENV
              echo "OPENSSL_LIB_DIR=/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV
           elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-             echo "OPENSSL_DIR=C:/Program Files/OpenSSL-Win64" >> $GITHUB_ENV
-             echo "OPENSSL_LIB_DIR=C:/Program Files/OpenSSL-Win64/lib" >> $GITHUB_ENV
+             echo "OPENSSL_DIR=C:/Program Files/OpenSSL" >> $GITHUB_ENV
+             echo "OPENSSL_LIB_DIR=C:/Program Files/OpenSSL/lib/VC" >> $GITHUB_ENV
           fi
 
       - name: Install Rust
