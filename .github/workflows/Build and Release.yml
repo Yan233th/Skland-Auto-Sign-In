@@ -110,5 +110,5 @@ jobs:
         run: |
           for file in ./artifacts/*; do
             filename=$(basename "$file")
-            gh release upload ${{ github.event.inputs.tag_name }} "$file" --clobber --label "$filename"
+            gh release upload ${{ github.event.inputs.tag_name }} "$file" --clobber
           done
