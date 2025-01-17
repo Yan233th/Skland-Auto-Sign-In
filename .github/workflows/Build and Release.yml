@@ -48,6 +48,19 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu
 
+      - name: Find OpenSSL files (Ubuntu)
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        run: |
+          sudo find / -iname "*openssl*" -print 2>/dev/null > openssl_paths.txt
+          cat openssl_paths.txt
+
+      - name: Find OpenSSL files (Windows)
+        if: ${{ matrix.os == 'windows-latest' }}
+        run: |
+          Get-ChildItem -Path C:\, D:\ -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match 'openssl' } | ForEach-Object { $_.FullName } > openssl_paths.txt
+          Get-Content openssl_paths.txt
+        shell: pwsh
+
       # - name: Set OpenSSL environment variables
       #   shell: bash
       #   run: |
