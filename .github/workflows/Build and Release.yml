@@ -42,6 +42,17 @@ jobs:
         run: |
           choco install openssl -y
 
+      - name: Set OpenSSL environment variables
+        shell: bash
+        run: |
+          if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
+             echo "OPENSSL_DIR=/usr" >> $GITHUB_ENV
+             echo "OPENSSL_LIB_DIR=/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV
+          elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+             echo "OPENSSL_DIR=C:/Program Files/OpenSSL-Win64" >> $GITHUB_ENV
+             echo "OPENSSL_LIB_DIR=C:/Program Files/OpenSSL-Win64/lib" >> $GITHUB_ENV
+          fi
+
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
