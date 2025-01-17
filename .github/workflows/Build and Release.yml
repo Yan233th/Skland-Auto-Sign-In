@@ -35,7 +35,7 @@ jobs:
         if: ${{ matrix.os == 'ubuntu-latest' }}
         run: |
           sudo apt-get update
-          sudo apt-get install -y libssl-dev
+          sudo apt-get install -y pkg-config libssl-dev
 
       - name: Install OpenSSL dev (Windows)
         if: ${{ matrix.os == 'windows-latest' }}
@@ -48,16 +48,16 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu
 
-      - name: Set OpenSSL environment variables
-        shell: bash
-        run: |
-          if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
-             echo "OPENSSL_DIR=/usr" >> $GITHUB_ENV
-             echo "OPENSSL_LIB_DIR=/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV
-          elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-             echo "OPENSSL_DIR=C:/Program Files/OpenSSL" >> $GITHUB_ENV
-             echo "OPENSSL_LIB_DIR=C:/Program Files/OpenSSL/lib/VC" >> $GITHUB_ENV
-          fi
+      # - name: Set OpenSSL environment variables
+      #   shell: bash
+      #   run: |
+      #     if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
+      #        echo "OPENSSL_DIR=/usr" >> $GITHUB_ENV
+      #        echo "OPENSSL_LIB_DIR=/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV
+      #     elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+      #        echo "OPENSSL_DIR=C:/Program Files/OpenSSL" >> $GITHUB_ENV
+      #        echo "OPENSSL_LIB_DIR=C:/Program Files/OpenSSL/lib/VC" >> $GITHUB_ENV
+      #     fi
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
