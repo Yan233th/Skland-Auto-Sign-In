@@ -29,7 +29,10 @@ pub fn get_tokens() -> Vec<String> {
 
 pub fn generate_headers(client: &Client) -> HeaderMap {
     let mut headers = HeaderMap::new();
-    headers.insert("User-Agent", HeaderValue::from_static("Skland/1.0.1 (com.hypergryph.skland; build:100001014; Android 31; ) Okhttp/4.11.0"));
+    headers.insert(
+        "User-Agent",
+        HeaderValue::from_static("Skland/1.0.1 (com.hypergryph.skland; build:100001014; Android 31; ) Okhttp/4.11.0"),
+    );
     headers.insert("Accept-Encoding", HeaderValue::from_static("gzip"));
     headers.insert("Connection", HeaderValue::from_static("close"));
     headers.insert("dId", HeaderValue::from_str(&verification::get_did(client)).unwrap());
@@ -70,7 +73,10 @@ pub fn do_sign(cred_resp: &Value) {
     let http_token = cred_resp["token"].as_str().unwrap();
     let cred = cred_resp["cred"].as_str().unwrap();
     let mut http_header = HeaderMap::new();
-    http_header.insert("User-Agent", HeaderValue::from_static("Skland/1.0.1 (com.hypergryph.skland; build:100001014; Android 31; ) Okhttp/4.11.0"));
+    http_header.insert(
+        "User-Agent",
+        HeaderValue::from_static("Skland/1.0.1 (com.hypergryph.skland; build:100001014; Android 31; ) Okhttp/4.11.0"),
+    );
     http_header.insert("Accept-Encoding", HeaderValue::from_static("gzip"));
     http_header.insert("Connection", HeaderValue::from_static("close"));
     http_header.insert("cred", HeaderValue::from_str(cred).unwrap());
@@ -80,13 +86,29 @@ pub fn do_sign(cred_resp: &Value) {
         let nick_name = character["nickName"].as_str().unwrap_or("Unknown");
         let channel_name = character["channelName"].as_str().unwrap_or("Unknown");
         let body = json!({"gameId": 1, "uid": character["uid"].as_str().unwrap()});
-        let headers = get_sign_header("https://zonai.skland.com/api/v1/game/attendance", "post", Some(body.to_string().as_str()), &http_header, http_token);
-        let response_text = client.post("https://zonai.skland.com/api/v1/game/attendance").headers(headers).json(&body).send().unwrap().text().expect("Failed to get content!");
+        let headers = get_sign_header(
+            "https://zonai.skland.com/api/v1/game/attendance",
+            "post",
+            Some(body.to_string().as_str()),
+            &http_header,
+            http_token,
+        );
+        let response_text = client
+            .post("https://zonai.skland.com/api/v1/game/attendance")
+            .headers(headers)
+            .json(&body)
+            .send()
+            .unwrap()
+            .text()
+            .expect("Failed to get content!");
         let response: Value = serde_json::from_str(&response_text).expect("Failed to parse JSON");
-        println!("{:?}", response_text);
-        println!("{:?}", response);
         if response["code"].as_i64().unwrap() != 0 {
-            eprintln!("{}({}) sign-in failed! Reason: {}", nick_name, channel_name, response["message"].as_str().unwrap_or("Unknown error"));
+            eprintln!(
+                "{}({}) sign-in failed! Reason: {}",
+                nick_name,
+                channel_name,
+                response["message"].as_str().unwrap_or("Unknown error")
+            );
             continue;
         }
         for award in response["data"]["awards"].as_array().unwrap() {
@@ -100,7 +122,13 @@ pub fn do_sign(cred_resp: &Value) {
 fn get_binding_list(http_header: &HeaderMap, http_token: &str) -> Vec<Value> {
     let client = reqwest::blocking::Client::new();
     let sign_header = get_sign_header("https://zonai.skland.com/api/v1/game/player/binding", "get", None, http_header, http_token);
-    let resp: Value = client.get("https://zonai.skland.com/api/v1/game/player/binding").headers(sign_header).send().unwrap().json().unwrap();
+    let resp: Value = client
+        .get("https://zonai.skland.com/api/v1/game/player/binding")
+        .headers(sign_header)
+        .send()
+        .unwrap()
+        .json()
+        .unwrap();
     if resp["code"] != 0 {
         eprintln!("An issue occurred while requesting the character list.: {}", resp["message"]);
         if resp["message"] == "用户未登录" {
