@@ -101,7 +101,7 @@ pub fn do_sign(cred_resp: &Value) {
             .unwrap()
             .text()
             .expect("Failed to get content!");
-        let response: Value = serde_json::from_str(&response_text).expect("Failed to parse JSON");
+        let response: Value = serde_json::from_str(response_text.trim()).expect("Failed to parse JSON");
         if response["code"].as_i64().unwrap() != 0 {
             eprintln!(
                 "{}({}) sign-in failed! Reason: {}",
