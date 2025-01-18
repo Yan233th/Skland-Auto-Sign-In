@@ -6,6 +6,9 @@ on:
       tag_name:
         description: 'Release tag name (e.g., v1.0.0)'
         required: true
+      release_description:
+        description: 'Enter a description for this release'
+        required: false
 
 jobs:
   create-release:
@@ -22,6 +25,7 @@ jobs:
         with:
           tag_name: ${{ github.event.inputs.tag_name }}
           release_name: ${{ env.PROJECT_NAME }} ${{ github.event.inputs.tag_name }}
+          body: ${{ github.event.inputs.release_description }}
           draft: false
           prerelease: false
     outputs:

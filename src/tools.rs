@@ -114,7 +114,7 @@ pub fn do_sign(cred_resp: &Value) {
         for award in response["data"]["awards"].as_array().unwrap() {
             let name = award["resource"]["name"].as_str().unwrap_or("Unknown");
             let count = award["count"].as_i64().unwrap_or(1);
-            println!("{}({}) signed in successfully and received {}*{}.", nick_name, channel_name, name, count);
+            println!("{}({}) signed in successfully and received 「{}」×{}.", nick_name, channel_name, name, count);
         }
     }
 }
