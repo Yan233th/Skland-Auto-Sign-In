@@ -2,7 +2,7 @@ name: Scheduled Auto Sign In
 
 on:
   schedule:
-    - cron: '0 16 * * *'
+    - cron: '5 16 * * *'
   workflow_dispatch:
 
 jobs:
