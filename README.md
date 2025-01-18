@@ -1,6 +1,6 @@
 # Skland-Auto-Sign-In
 
-森空岛签到脚本，可搭配GitHub Actions等工具实现自动化
+森空岛自动签到脚本，可搭配GitHub Actions等工具实现自动化
 
 ## Usage Instructions
 
