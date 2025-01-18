@@ -1,0 +1,32 @@
+name: Scheduled Auto Sign In
+
+on:
+  schedule:
+    - cron: '0 16 * * *'
+  workflow_dispatch:
+
+jobs:
+  auto-sign-in:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get latest release URL
+        id: get_release
+        run: |
+          LATEST_RELEASE_URL=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r '.assets[] | select(.name | contains("linux-x64")) | .browser_download_url')
+          echo "LATEST_RELEASE_URL=$LATEST_RELEASE_URL" >> $GITHUB_ENV
+
+      - name: Download latest release (linux-x64)
+        run: |
+          curl -L -o sign-in-program ${{ env.LATEST_RELEASE_URL }}
+
+      - name: Make executable
+        run: chmod +x ./sign-in-program
+
+      - name: Run sign-in program
+        run: ./sign-in-program
+        env:
+          USER_TOKENS: ${{ secrets.USER_TOKENS }}
