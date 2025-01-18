@@ -38,19 +38,22 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            target-label: linux-x64
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             target-label: windows-x64
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            target-label: linux-x64
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            target-label: linux-arm64
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
       - name: Install OpenSSL dev (Ubuntu)
-        if: ${{ matrix.os == 'ubuntu-latest' }}
+        if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm' }}
         run: |
           sudo apt-get update
           sudo apt-get install -y pkg-config libssl-dev
@@ -68,7 +71,7 @@ jobs:
           override: true
 
       - name: Build project (Linux)
-        if: ${{ matrix.os == 'ubuntu-latest' }}
+        if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm' }}
         uses: actions-rs/cargo@v1
         with:
           command: build
