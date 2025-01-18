@@ -27,6 +27,6 @@ jobs:
         run: chmod +x ./sign-in-program
 
       - name: Run sign-in program
-        # env:
-        #   USER_TOKENS: ${{ secrets.USER_TOKENS }}
+        env:
+          USER_TOKENS: ${{ secrets.USER_TOKENS }}
         run: ./sign-in-program
