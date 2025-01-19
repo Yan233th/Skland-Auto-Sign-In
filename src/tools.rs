@@ -107,11 +107,13 @@ pub fn do_sign(cred_resp: &Value) {
             .unwrap()
             .text()
             .expect("Failed to get content!");
-        let response: Value = serde_json::from_str(response_text.trim()).expect("Failed to parse JSON");
         if is_debug_enabled() {
             println!();
             println!("raw_response: {:?}", response_text);
             println!("after_trim: {:?}", response_text.trim());
+        }
+        let response: Value = serde_json::from_str(response_text.trim()).expect("Failed to parse JSON");
+        if is_debug_enabled() {
             println!("after_parsing_to_json: {:?}", response);
         }
         if response["code"].as_i64().unwrap() != 0 {
