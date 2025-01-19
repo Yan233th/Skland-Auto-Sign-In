@@ -8,6 +8,12 @@ use url::Url;
 
 use crate::verification;
 
+fn is_debug_enabled() -> bool {
+    return ["ACTIONS_RUNNER_DEBUG", "ACTIONS_STEP_DEBUG"]
+        .iter()
+        .any(|env_key| env::var(env_key).map_or(false, |env_val| env_val.to_lowercase() == "true"));
+}
+
 pub fn get_tokens() -> Vec<String> {
     let tokens: Vec<String> = match env::var("USER_TOKENS") {
         Ok(val) => val.split(';').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect(),
@@ -102,6 +108,12 @@ pub fn do_sign(cred_resp: &Value) {
             .text()
             .expect("Failed to get content!");
         let response: Value = serde_json::from_str(response_text.trim()).expect("Failed to parse JSON");
+        if is_debug_enabled() {
+            println!();
+            println!("raw_response: {:?}", response_text);
+            println!("after_trim: {:?}", response_text.trim());
+            println!("after_parsing_to_json: {:?}", response);
+        }
         if response["code"].as_i64().unwrap() != 0 {
             eprintln!(
                 "{}({}) sign-in failed! Reason: {}",
