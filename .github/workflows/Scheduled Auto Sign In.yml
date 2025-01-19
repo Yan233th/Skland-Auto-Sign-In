@@ -29,4 +29,5 @@ jobs:
       - name: Run sign-in program
         env:
           USER_TOKENS: ${{ secrets.USER_TOKENS }}
+          RUST_BACKTRACE: full
         run: ./sign-in-program
