@@ -9,7 +9,7 @@ use url::Url;
 use crate::verification;
 
 fn is_debug_enabled() -> bool {
-    return ["ACTIONS_RUNNER_DEBUG", "ACTIONS_STEP_DEBUG"]
+    return ["ACTIONS_RUNNER_DEBUG", "ACTIONS_STEP_DEBUG", "MANUAL_DEBUG"]
         .iter()
         .any(|env_key| env::var(env_key).map_or(false, |env_val| env_val.to_lowercase() == "true"));
 }
