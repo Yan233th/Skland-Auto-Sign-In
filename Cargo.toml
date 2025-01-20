@@ -13,7 +13,7 @@ hex = "0.4"
 hmac = "0.12"
 md-5 = "0.10"
 openssl = "0.10"
-reqwest = { version = "0.12", features = ["blocking", "json"] }
+reqwest = { version = "0.12", features = ["blocking", "gzip", "json"] }
 serde_json = "1.0"
 sha2 = "0.10"
 url = "2.5"
