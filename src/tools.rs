@@ -107,6 +107,9 @@ pub fn do_sign(cred_resp: &Value) {
             .unwrap()
             .text()
             .expect("Failed to get content!");
+        if is_debug_enabled() {
+            println!("response_text: {}", response_text);
+        }
         let response: Value = serde_json::from_str(response_text.trim()).expect("Failed to parse JSON");
         if response["code"].as_i64().unwrap() != 0 {
             eprintln!(
