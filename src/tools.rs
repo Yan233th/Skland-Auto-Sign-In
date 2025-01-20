@@ -99,22 +99,25 @@ pub fn do_sign(cred_resp: &Value) {
             &http_header,
             http_token,
         );
-        let response_text = client
-            .post("https://zonai.skland.com/api/v1/game/attendance")
-            .headers(headers)
-            .json(&body)
-            .send()
-            .unwrap()
-            .text()
-            .expect("Failed to get content!");
+        let response: Value;
         if is_debug_enabled() {
             println!();
-            println!("raw_response: {:?}", response_text);
-            println!("after_trim: {:?}", response_text.trim());
-        }
-        let response: Value = serde_json::from_str(response_text.trim()).expect("Failed to parse JSON");
-        if is_debug_enabled() {
+            let response_raw = client.post("https://zonai.skland.com/api/v1/game/attendance").headers(headers).json(&body).send().unwrap();
+            println!("response_raw: {:?}", response_raw);
+            let response_text = response_raw.text().expect("Failed to get content!");
+            println!("response_text: {}", response_text);
+            println!("after_trim: {}", response_text.trim());
+            response = serde_json::from_str(response_text.trim()).expect("Failed to parse JSON");
             println!("after_parsing_to_json: {:?}", response);
+        } else {
+            let response_text = client
+                .post("https://zonai.skland.com/api/v1/game/attendance")
+                .json(&body)
+                .send()
+                .unwrap()
+                .text()
+                .expect("Failed to get content!");
+            response = serde_json::from_str(response_text.trim()).expect("Failed to parse JSON");
         }
         if response["code"].as_i64().unwrap() != 0 {
             eprintln!(
