@@ -12,9 +12,8 @@ tokens可存放于环境变量`USER_TOKENS`或`user_tokens.txt`中, 环境变量
 
 ## Disclaimer
 
-无原创部分, 纯抄, 练手用\
-我有病我用Rust写自动签到
+纯练手用
 
 ## Acknowledgments
 
-100%思路来源: https://gitee.com/FancyCabbage/skyland-auto-sign/
+鉴权思路来源: https://gitee.com/FancyCabbage/skyland-auto-sign/
