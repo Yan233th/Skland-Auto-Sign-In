@@ -10,7 +10,7 @@ on:
         description: 'Enter a description for this release'
         required: false
       retrigger_sign_in:
-        description: 'Just leave it blank'
+        description: 'Just leave it as it is'
         required: false
         default: 'false'
 

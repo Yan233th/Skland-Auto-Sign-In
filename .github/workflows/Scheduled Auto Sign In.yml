@@ -26,7 +26,7 @@ jobs:
           if [[ "$RELEASE_COUNT" -eq 0 ]]; then
             echo "NO_RELEASES_FOUND=true" >> $GITHUB_ENV
           else
-             echo "NO_RELEASES_FOUND=false" >> $GITHUB_ENV
+            echo "NO_RELEASES_FOUND=false" >> $GITHUB_ENV
           fi
 
       - name: Trigger Build and Release Workflow if no release exist
@@ -42,7 +42,7 @@ jobs:
               ref: context.ref,
               inputs: {
                 tag_name: 'v1.0.0',
-                release_description: '',
+                release_description: 'Automatic build because there is no existing release.',
                 retrigger_sign_in: 'true'
               }
             });
