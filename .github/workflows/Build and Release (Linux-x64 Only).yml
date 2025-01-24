@@ -1,0 +1,79 @@
+name: Build and Release (Linux-x64 Only)
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release tag name (e.g., v1.0.0)'
+        required: true
+      release_description:
+        description: 'Enter a description for this release'
+        required: false
+
+jobs:
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    env:
+      PROJECT_NAME: Skland-Auto-Sign-In
+    steps:
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.event.inputs.tag_name }}
+          release_name: ${{ env.PROJECT_NAME }} ${{ github.event.inputs.tag_name }}
+          body: ${{ github.event.inputs.release_description }}
+          draft: false
+          prerelease: false
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+
+  build-and-upload:
+    name: Build and Upload for Linux-x64 Only
+    needs: create-release
+    runs-on: ${{ matrix.os }}
+    env:
+      PROJECT_NAME: Skland-Auto-Sign-In
+      VERSION: ${{ github.event.inputs.tag_name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            target-label: linux-x64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install OpenSSL dev
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libssl-dev
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
+
+      - name: Build project
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target ${{ matrix.target }}
+
+      - name: Upload release asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: target/${{ matrix.target }}/release/${{ env.PROJECT_NAME }}${{ matrix.target == 'x86_64-pc-windows-msvc' && '.exe' || '' }}
+          asset_name: ${{ env.PROJECT_NAME }}-${{ env.VERSION }}-${{ matrix.target-label }}${{ matrix.target == 'x86_64-pc-windows-msvc' && '.exe' || '' }}
+          asset_content_type: application/octet-stream
