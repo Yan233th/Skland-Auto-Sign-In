@@ -18,20 +18,50 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Check for Existing Releases
+        id: check_releases
+        run: |
+          RELEASE_COUNT=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases | jq '. | length')
+          echo "RELEASE_COUNT=$RELEASE_COUNT" >> $GITHUB_ENV
+          if [[ "$RELEASE_COUNT" -eq 0 ]]; then
+            echo "NO_RELEASES_FOUND=true" >> $GITHUB_ENV
+          else
+             echo "NO_RELEASES_FOUND=false" >> $GITHUB_ENV
+          fi
+
+      - name: Trigger Build and Release Workflow if no release exist
+        if: env.NO_RELEASES_FOUND == 'true'
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'Build and Release (Linux-x64 Only).yml',
+              ref: context.ref,
+              inputs: {
+                tag_name: 'v1.0.0',
+                release_description: '',
+                retrigger_sign_in: 'true'
+              }
+            });
+
       - name: Get latest release URL
         id: get_release
+        if: env.NO_RELEASES_FOUND != 'true'
         run: |
           LATEST_RELEASE_URL=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r '.assets[] | select(.name | contains("linux-x64")) | .browser_download_url')
           echo "LATEST_RELEASE_URL=$LATEST_RELEASE_URL" >> $GITHUB_ENV
 
       - name: Download latest release (linux-x64)
+        if: env.NO_RELEASES_FOUND != 'true'
         run: |
           curl -L -o sign-in-program ${{ env.LATEST_RELEASE_URL }}
-
-      - name: Make executable
-        run: chmod +x ./sign-in-program
+          chmod +x ./sign-in-program
 
       - name: Run sign-in program
+        if: env.NO_RELEASES_FOUND != 'true'
         env:
           USER_TOKENS: ${{ secrets.USER_TOKENS }}
           MANUAL_DEBUG: ${{ github.event.inputs.manual_debug }}

@@ -9,6 +9,10 @@ on:
       release_description:
         description: 'Enter a description for this release'
         required: false
+      retrigger_sign_in:
+        description: 'Just leave it blank'
+        required: false
+        default: 'false'
 
 jobs:
   create-release:
@@ -77,3 +81,16 @@ jobs:
           asset_path: target/${{ matrix.target }}/release/${{ env.PROJECT_NAME }}${{ matrix.target == 'x86_64-pc-windows-msvc' && '.exe' || '' }}
           asset_name: ${{ env.PROJECT_NAME }}-${{ env.VERSION }}-${{ matrix.target-label }}${{ matrix.target == 'x86_64-pc-windows-msvc' && '.exe' || '' }}
           asset_content_type: application/octet-stream
+
+      - name: Trigger Scheduled Auto Sign In if required
+        if: ${{ github.event.inputs.retrigger_sign_in == 'true' }}
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'Scheduled Auto Sign In.yml',
+              ref: context.ref,
+            });
