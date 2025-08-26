@@ -9,11 +9,11 @@ use url::Url;
 use crate::network::retry_request;
 use crate::verification;
 
-fn is_debug_enabled() -> bool {
-    return ["ACTIONS_RUNNER_DEBUG", "ACTIONS_STEP_DEBUG", "MANUAL_DEBUG"]
-        .iter()
-        .any(|env_key| env::var(env_key).map_or(false, |env_val| env_val.to_lowercase() == "true"));
-}
+// fn is_debug_enabled() -> bool {
+//     return ["ACTIONS_RUNNER_DEBUG", "ACTIONS_STEP_DEBUG", "MANUAL_DEBUG"]
+//         .iter()
+//         .any(|env_key| env::var(env_key).map_or(false, |env_val| env_val.to_lowercase() == "true"));
+// }
 
 pub fn get_tokens() -> Vec<String> {
     let tokens: Vec<String> = match env::var("USER_TOKENS") {
@@ -102,19 +102,15 @@ pub fn do_sign(cred_resp: &Value) {
             &http_header,
             http_token,
         );
-        let response_text = retry_request(|| {
+        let response: Value = retry_request(|| {
             let resp = client
                 .post("https://zonai.skland.com/api/v1/game/attendance")
                 .headers(headers.clone())
                 .json(&body)
                 .send()?
-                .text()?;
+                .json()?;
             Ok(resp)
         });
-        if is_debug_enabled() {
-            println!("response_text: {}", response_text);
-        }
-        let response: Value = serde_json::from_str(response_text.trim()).expect("Failed to parse JSON");
         if response["code"].as_i64().unwrap() != 0 {
             eprintln!(
                 "{}({}) sign-in failed! Reason: {}",
