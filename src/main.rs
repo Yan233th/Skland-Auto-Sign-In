@@ -1,6 +1,7 @@
 use chrono::Utc;
 use reqwest::blocking::Client;
 
+mod network;
 mod tools;
 mod verification;
 
