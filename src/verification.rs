@@ -18,6 +18,8 @@ use std::{
 };
 use uuid::Uuid;
 
+use crate::network::retry_request;
+
 const DES_RULE: &str = r#"{
     "appId": {"cipher": "DES", "is_encrypt": 1, "key": "uy7mzc4h", "obfuscated_name": "xx"},
     "box": {"is_encrypt": 0, "obfuscated_name": "jf"},
@@ -103,21 +105,22 @@ pub fn get_did(client: &Client) -> String {
     let compressed_data = gzip_compress(&apply_des_rules(&des_target, &des_rules));
     let encrypted = aes_encrypt(&compressed_data, pri_id_hex.as_bytes());
     // println!("Final: {}", encrypted);
-    let response: Value = client
-        .post("https://fp-it.portal101.cn/deviceprofile/v4")
-        .json(&json!({
-            "appId": "default",
-            "compress": 2,
-            "data": encrypted,
-            "encode": 5,
-            "ep": ep_base64,
-            "organization": "UWXspnCCJN4sfYlNfqps",
-            "os": "web"
-        }))
-        .send()
-        .unwrap()
-        .json()
-        .unwrap();
+    let response: Value = retry_request(|| {
+        let resp = client
+            .post("https://fp-it.portal101.cn/deviceprofile/v4")
+            .json(&json!({
+                "appId": "default",
+                "compress": 2,
+                "data": encrypted,
+                "encode": 5,
+                "ep": ep_base64,
+                "organization": "UWXspnCCJN4sfYlNfqps",
+                "os": "web"
+            }))
+            .send()?
+            .json()?;
+        Ok(resp)
+    });
     if response["code"] != 1100 {
         eprintln!("{}", response);
         panic!("D_ID calculation failed!");

@@ -6,6 +6,7 @@ use serde_json::{json, Value};
 use std::{env, fs};
 use url::Url;
 
+use crate::network::retry_request;
 use crate::verification;
 
 fn is_debug_enabled() -> bool {
@@ -46,14 +47,15 @@ pub fn generate_headers(client: &Client) -> HeaderMap {
 }
 
 pub fn get_authorization(client: &Client, headers: &HeaderMap, token: &str) -> String {
-    let authorization_response: Value = client
-        .post("https://as.hypergryph.com/user/oauth2/v2/grant")
-        .headers(headers.clone())
-        .json(&json!({"appCode": "4ca99fa6b56cc2ba", "token": token, "type": 0}))
-        .send()
-        .unwrap()
-        .json()
-        .unwrap();
+    let authorization_response: Value = retry_request(|| {
+        let resp = client
+            .post("https://as.hypergryph.com/user/oauth2/v2/grant")
+            .headers(headers.clone())
+            .json(&json!({"appCode": "4ca99fa6b56cc2ba", "token": token, "type": 0}))
+            .send()?
+            .json()?;
+        Ok(resp)
+    });
     if authorization_response["status"] != 0 {
         panic!("Failed to get authorization: {}", authorization_response["message"]);
     }
@@ -61,14 +63,15 @@ pub fn get_authorization(client: &Client, headers: &HeaderMap, token: &str) -> S
 }
 
 pub fn get_credential(client: &Client, headers: &HeaderMap, authorization: &str) -> Value {
-    let credential_response: Value = client
-        .post("https://zonai.skland.com/web/v1/user/auth/generate_cred_by_code")
-        .headers(headers.clone())
-        .json(&json!({"code": authorization, "kind": 1}))
-        .send()
-        .unwrap()
-        .json()
-        .unwrap();
+    let credential_response: Value = retry_request(|| {
+        let resp = client
+            .post("https://zonai.skland.com/web/v1/user/auth/generate_cred_by_code")
+            .headers(headers.clone())
+            .json(&json!({"code": authorization, "kind": 1}))
+            .send()?
+            .json()?;
+        Ok(resp)
+    });
     if credential_response["code"] != 0 {
         panic!("Failed to get credential: {}", credential_response["message"]);
     }
@@ -99,14 +102,15 @@ pub fn do_sign(cred_resp: &Value) {
             &http_header,
             http_token,
         );
-        let response_text = client
-            .post("https://zonai.skland.com/api/v1/game/attendance")
-            .headers(headers)
-            .json(&body)
-            .send()
-            .unwrap()
-            .text()
-            .expect("Failed to get content!");
+        let response_text = retry_request(|| {
+            let resp = client
+                .post("https://zonai.skland.com/api/v1/game/attendance")
+                .headers(headers.clone())
+                .json(&body)
+                .send()?
+                .text()?;
+            Ok(resp)
+        });
         if is_debug_enabled() {
             println!("response_text: {}", response_text);
         }
@@ -131,13 +135,10 @@ pub fn do_sign(cred_resp: &Value) {
 fn get_binding_list(http_header: &HeaderMap, http_token: &str) -> Vec<Value> {
     let client = reqwest::blocking::Client::new();
     let sign_header = get_sign_header("https://zonai.skland.com/api/v1/game/player/binding", "get", None, http_header, http_token);
-    let resp: Value = client
-        .get("https://zonai.skland.com/api/v1/game/player/binding")
-        .headers(sign_header)
-        .send()
-        .unwrap()
-        .json()
-        .unwrap();
+    let resp: Value = retry_request(|| {
+        let resp = client.get("https://zonai.skland.com/api/v1/game/player/binding").headers(sign_header.clone()).send()?.json()?;
+        Ok(resp)
+    });
     if resp["code"] != 0 {
         eprintln!("An issue occurred while requesting the character list.: {}", resp["message"]);
         if resp["message"] == "用户未登录" {
