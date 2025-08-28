@@ -10,7 +10,7 @@ pub fn retry_request<T>(mut f: impl FnMut() -> Result<T, Error>) -> T {
             Ok(val) => return val,
             Err(e) => {
                 eprintln!("Attempt {attempt} failed: {e}");
-                sleep(Duration::from_secs(1));
+                // sleep(Duration::from_secs(1));
             }
         }
     }
